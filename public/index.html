@@ -4,17 +4,56 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#F7F4FA">
-  <title>Study calendar · Abi’s planner</title>
+  <title>Abi’s study desk</title>
   <link rel="stylesheet" href="planner.css">
+  <link rel="stylesheet" href="desk.css">
   <script defer src="planner.js"></script>
+  <script defer src="desk.js"></script>
 </head>
 <body>
+  <div class="atmosphere" aria-hidden="true"></div>
+  <div id="pointer-light" aria-hidden="true"></div>
   <header class="mast"><div class="mast-inner">
-    <div class="brand"><span class="book" aria-hidden="true"><i></i><i></i><i></i></span><span>Abi’s planner</span></div>
+    <a class="brand" href="#home" aria-label="Abi’s study desk, home"><span class="lens-mark" aria-hidden="true"></span><span>Abi’s <span class="brand-long">study </span>desk</span></a>
+    <nav class="desk-nav" aria-label="Main navigation"><a href="#home" aria-current="page">Home</a><a href="#planner">Planner</a></nav>
     <button id="theme" class="theme" type="button" aria-label="Switch to dark mode"><span aria-hidden="true">◐</span><span id="theme-label">Dark mode</span></button>
   </div></header>
-  <main>
-    <div class="intro"><div><p id="date-line" class="date-line"></p><h1>Study calendar</h1></div>
+  <main id="home-page" class="desk-page">
+    <section class="opening" aria-labelledby="welcome">
+      <div class="hello">
+        <p class="desk-date"><span class="date-rule" aria-hidden="true"></span><time id="desk-date"></time></p>
+        <h1 id="welcome" tabindex="-1"><span id="greeting">Welcome,</span> <em>Abi.</em></h1>
+        <a class="today-link" href="#planner" id="home-today"><span class="tiny-calendar" aria-hidden="true"></span><span id="home-schedule">View today’s schedule</span></a>
+      </div>
+      <div class="scene" aria-hidden="true">
+        <div class="scene-orbit orbit-one"></div><div class="scene-orbit orbit-two"></div>
+        <span class="glint glint-one">✦</span><span class="glint glint-two">✧</span>
+        <img id="desk-art" src="study-desk.webp" alt="" width="560" height="400" fetchpriority="high">
+      </div>
+    </section>
+    <section class="spaces" aria-labelledby="spaces-heading">
+      <div class="spaces-heading"><h2 id="spaces-heading">Your spaces</h2><span aria-hidden="true"></span></div>
+      <div class="islands">
+        <a class="island planner-island" href="#planner">
+          <span class="island-visual" aria-hidden="true"><span class="mini-planner"><span id="icon-day">22</span></span></span>
+          <span class="island-copy"><strong>Planner</strong><span>Classes, exams &amp; study time</span></span>
+          <span class="island-end"><i class="chevron" aria-hidden="true"></i></span>
+        </a>
+        <button type="button" class="island notebook-island" data-preview="notebook" aria-haspopup="dialog">
+          <span class="island-visual" aria-hidden="true"><span class="mini-notebook"><i></i></span></span>
+          <span class="island-copy"><strong>Notebook</strong><span>Lectures &amp; grid notes</span></span>
+          <span class="island-end"><span class="preview-label">Preview</span></span>
+        </button>
+        <button type="button" class="island review-island" data-preview="review" aria-haspopup="dialog">
+          <span class="island-visual" aria-hidden="true"><span class="mini-cards"><i>?</i></span></span>
+          <span class="island-copy"><strong>Review</strong><span>Flashcards &amp; practice quizzes</span></span>
+          <span class="island-end"><span class="preview-label">Preview</span></span>
+        </button>
+      </div>
+    </section>
+  </main>
+  <main id="planner-page" hidden>
+    <div class="intro"><div><p id="date-line" class="date-line"></p><h1 tabindex="-1">Study calendar</h1></div>
       <button id="add-event" class="primary" type="button"><b aria-hidden="true">+</b> Add event</button>
     </div>
     <div class="layout">
@@ -37,6 +76,10 @@
     </div>
     <p id="storage-note" class="storage-note" role="status">Events are saved in this browser.</p>
   </main>
+  <dialog id="space-preview" aria-labelledby="preview-name">
+    <div class="form-head"><p class="date-line">Space preview</p><button type="button" id="preview-close" aria-label="Close preview">×</button></div>
+    <h2 id="preview-name"></h2><p id="preview-description"></p>
+  </dialog>
   <dialog id="editor" aria-labelledby="editor-title">
     <form id="entry">
       <div class="form-head"><h2 id="editor-title">Add event</h2><button type="button" id="close" aria-label="Close event editor">×</button></div>

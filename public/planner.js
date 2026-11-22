@@ -92,6 +92,15 @@ function displaySchedule() {
     grouped.get(date).push(entry);
   }
   byId('date-line').textContent = format(today, {weekday:'long', month:'long', day:'numeric', year:'numeric'});
+  const todaysEvents = grouped.get(dateKey(today)) || [];
+  const summary = todaysEvents.length === 0 ? 'Today is open' :
+    todaysEvents.length + (todaysEvents.length === 1 ? ' event today' : ' events today');
+  byId('home-schedule').textContent = summary + ' · View schedule';
+  byId('desk-date').textContent = format(today, {weekday:'long', month:'long', day:'numeric'});
+  byId('desk-date').dateTime = dateKey(today);
+  byId('icon-day').textContent = today.getDate();
+  const hour = today.getHours();
+  byId('greeting').textContent = hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
   byId('month').textContent = format(monthStart, {month:'long', year:'numeric'});
   byId('previous').disabled = monthKey === '0001-01';
   byId('next').disabled = monthKey === '9999-12';
