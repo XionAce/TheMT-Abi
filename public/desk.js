@@ -3,26 +3,27 @@
 (() => {
   const home = document.getElementById('home-page');
   const planner = document.getElementById('planner-page');
+  const garden = document.getElementById('garden-page');
   const preview = document.getElementById('space-preview');
-  const editor = document.getElementById('editor');
   const spaces = {
     notebook: {title:'Notebook', description:'Planned for this space: open a lecture PDF beside a grid page, then write and arrange microscope images with your Pencil.'},
     review: {title:'Review', description:'Planned for this space: hide a label on a lecture image, name what you see, and flip it over to check your answer.'}
   };
 
   function navigate(moveFocus) {
-    const section = location.hash === '#planner' ? 'planner' : 'home';
-    home.hidden = section !== 'home';
-    planner.hidden = section !== 'planner';
-    document.title = section === 'planner' ? 'Planner · Abiverse' : 'Abiverse';
+    const pages = {home, planner, garden};
+    const hash = location.hash.slice(1);
+    const section = Object.hasOwn(pages, hash) ? hash : 'home';
+    for (const [name, page] of Object.entries(pages)) page.hidden = name !== section;
+    const titles = {home:'Abiverse', planner:'Planner · Abiverse', garden:'Doodle Garden · Abiverse'};
+    document.title = titles[section];
     for (const link of document.querySelectorAll('.desk-nav a')) {
       if (link.hash === '#' + section) link.setAttribute('aria-current','page');
       else link.removeAttribute('aria-current');
     }
     if (moveFocus) {
-      if (preview.open) preview.close();
-      if (editor.open) editor.close();
-      (section === 'planner' ? planner : home).querySelector('h1').focus({preventScroll:true});
+      for (const dialog of document.querySelectorAll('dialog[open]')) dialog.close();
+      pages[section].querySelector('h1').focus({preventScroll:true});
       window.scrollTo(0, 0);
     }
   }

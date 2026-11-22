@@ -7,15 +7,17 @@
   <title>Abiverse</title>
   <link rel="stylesheet" href="planner.css">
   <link rel="stylesheet" href="desk.css">
+  <link rel="stylesheet" href="garden.css">
   <script defer src="planner.js"></script>
   <script defer src="desk.js"></script>
+  <script defer src="garden.js"></script>
 </head>
 <body>
   <div class="atmosphere" aria-hidden="true"></div>
   <div id="pointer-light" aria-hidden="true"></div>
   <header class="mast"><div class="mast-inner">
     <a class="brand" href="#home" aria-label="Abiverse home"><span class="lens-mark" aria-hidden="true"></span><span>Abiverse</span></a>
-    <nav class="desk-nav" aria-label="Main navigation"><a href="#home" aria-current="page">Home</a><a href="#planner">Planner</a></nav>
+    <nav class="desk-nav" aria-label="Main navigation"><a href="#home" aria-current="page">Home</a><a href="#planner">Planner</a><a href="#garden">Garden</a></nav>
     <button id="theme" class="theme" type="button" aria-label="Switch to dark mode"><span aria-hidden="true">◐</span><span id="theme-label">Dark mode</span></button>
   </div></header>
   <main id="home-page" class="desk-page">
@@ -37,6 +39,11 @@
         <a class="island planner-island" href="#planner">
           <span class="island-visual" aria-hidden="true"><span class="mini-planner"><span id="icon-day">22</span></span></span>
           <span class="island-copy"><strong>Planner</strong><span>Classes, exams &amp; study time</span></span>
+          <span class="island-end"><i class="chevron" aria-hidden="true"></i></span>
+        </a>
+        <a class="island garden-island" href="#garden">
+          <span class="island-visual" aria-hidden="true"><span class="paper-sprout"><i></i></span></span>
+          <span class="island-copy"><strong>Doodle Garden</strong><span>Plant drawings &amp; little memories</span></span>
           <span class="island-end"><i class="chevron" aria-hidden="true"></i></span>
         </a>
         <button type="button" class="island notebook-island" data-preview="notebook" aria-haspopup="dialog">
@@ -76,6 +83,39 @@
     </div>
     <p id="storage-note" class="storage-note" role="status">Events are saved in this browser.</p>
   </main>
+  <main id="garden-page" hidden>
+    <div class="intro"><div><h1 tabindex="-1">Doodle Garden</h1><p id="garden-hint" aria-live="polite">Draw a little something and choose a spot to plant it.</p></div>
+      <button type="button" id="garden-draw" class="primary">Plant a doodle</button></div>
+    <section class="meadow" aria-label="Explore the garden">
+      <div id="garden-viewport" tabindex="0" aria-label="Open meadow. Swipe to explore, tap the grass to walk, or use the arrow keys.">
+        <div id="garden-world">
+          <div class="landscape" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="willow" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="moonflowers" aria-hidden="true"><i>✿</i><i>✿</i><i>✿</i></div>
+          <div class="fireflies" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <div id="garden-plots"></div>
+          <span id="snail" aria-hidden="true"><span class="snail-body"><i></i><b></b></span></span>
+        </div>
+      </div>
+      <div class="garden-compass"><button type="button" id="walk-left" aria-label="Walk left">‹</button><span id="garden-place">Clover meadow</span><button type="button" id="walk-right" aria-label="Walk right">›</button></div>
+    </section>
+    <div class="garden-footer"><p><span id="garden-count">0 doodles</span> · Saved in this browser</p>
+      <button type="button" id="plant-here" class="primary" hidden>Plant beside the snail</button>
+      <label id="memory-picker" hidden>Find a doodle<select id="find-memory"><option value="">Choose a memory</option></select></label>
+    </div>
+    <p id="garden-message" role="status"></p>
+  </main>
+  <dialog id="doodle-editor" aria-labelledby="draw-title">
+    <div class="form-head"><h2 id="draw-title">Draw a doodle</h2><button type="button" id="draw-close" aria-label="Close drawing pad">×</button></div>
+    <canvas id="draw-pad" width="640" height="640" aria-label="Draw with your Pencil, finger or mouse"></canvas>
+    <div class="ink-tools"><div id="ink-palette" role="group" aria-label="Ink color"></div><button type="button" id="undo-stroke" disabled>Undo</button></div>
+    <label>A note to remember (optional)<input id="doodle-note" maxlength="200" placeholder="What made you smile today?"></label>
+    <button type="button" id="choose-spot" class="primary" disabled>Choose a spot</button>
+  </dialog>
+  <dialog id="doodle-memory" aria-labelledby="memory-title">
+    <div class="form-head"><h2 id="memory-title">Planted doodle</h2><button type="button" id="memory-close" aria-label="Close memory">×</button></div>
+    <div id="memory-image"></div><p id="memory-note"></p><p id="memory-date"></p>
+  </dialog>
   <dialog id="space-preview" aria-labelledby="preview-name">
     <div class="form-head"><p class="date-line">Space preview</p><button type="button" id="preview-close" aria-label="Close preview">×</button></div>
     <h2 id="preview-name"></h2><p id="preview-description"></p>
