@@ -104,5 +104,4 @@ a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
   .island-visual{flex:0 0 64px;justify-content:center;transform:scale(.84)}.island-end{position:static;margin-left:auto}.island-copy>span{font-size:.83rem}
 }
 @media(max-width:370px){.brand{font-size:1rem}.desk-nav a{padding-inline:8px}.island{gap:9px;padding-inline:12px}.desk-date{font-size:.67rem}.date-rule{display:none}.opening{min-height:220px}}
-@media(max-width:480px){.brand-long{display:none}}
 @media(pointer:coarse){.desk-nav a,.theme{min-height:44px}}

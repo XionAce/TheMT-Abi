@@ -14,7 +14,7 @@
     const section = location.hash === '#planner' ? 'planner' : 'home';
     home.hidden = section !== 'home';
     planner.hidden = section !== 'planner';
-    document.title = section === 'planner' ? 'Study calendar · Abi’s study desk' : 'Abi’s study desk';
+    document.title = section === 'planner' ? 'Planner · Abiverse' : 'Abiverse';
     for (const link of document.querySelectorAll('.desk-nav a')) {
       if (link.hash === '#' + section) link.setAttribute('aria-current','page');
       else link.removeAttribute('aria-current');
