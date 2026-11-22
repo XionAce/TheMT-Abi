@@ -1,8 +1,6 @@
 'use strict';
 
 const byId = id => document.getElementById(id);
-const eventPrefix = 'themt-abi.event.';
-const themeKey = 'themt-abi.theme';
 const kinds = ['Class', 'Exam', 'Study'];
 const events = new Map();
 const editor = byId('editor');
@@ -38,20 +36,15 @@ function validEvent(item) {
     (item.time === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(item.time)) && typeof item.notes === 'string';
 }
 
-function loadEvents() {
-  events.clear();
+async function loadEvents() {
   try {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (!key?.startsWith(eventPrefix)) continue;
-      try {
-        const item = JSON.parse(localStorage.getItem(key));
-        if (validEvent(item)) events.set(key.slice(eventPrefix.length), item);
-      } catch { /* Ignore an unreadable entry so the other dates still open. */ }
-    }
+    const stored = await storageService.listEvents();
+    events.clear();
+    for (const [id,item] of stored) if (validEvent(item)) events.set(id,item);
   } catch {
-    byId('storage-note').textContent = 'Browser storage is unavailable. Enable it to save events.';
+    byId('storage-note').textContent = 'Browser storage is unavailable.';
   }
+  displaySchedule();
 }
 
 function element(tag, className, text) {
@@ -92,15 +85,16 @@ function displaySchedule() {
     grouped.get(date).push(entry);
   }
   byId('date-line').textContent = format(today, {weekday:'long', month:'long', day:'numeric', year:'numeric'});
-  const todaysEvents = grouped.get(dateKey(today)) || [];
-  const summary = todaysEvents.length === 0 ? 'Today is open' :
-    todaysEvents.length + (todaysEvents.length === 1 ? ' event today' : ' events today');
-  byId('home-schedule').textContent = summary + ' · View schedule';
+  const day = dateKey(today);
+  const time = String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0');
+  const next = sorted.find(([,item]) => item.date > day || (item.date === day && (!item.time || item.time >= time)))?.[1];
+  byId('home-today').dataset.date = next?.date || day;
+  byId('home-schedule').textContent = next
+    ? next.title + ' · ' + (next.date === day ? 'Today' : format(parseDate(next.date),{month:'short',day:'numeric'})) + ' · ' + eventTime(next)
+    : 'No upcoming deadlines — enjoy your day ✨';
   byId('desk-date').textContent = format(today, {weekday:'long', month:'long', day:'numeric'});
   byId('desk-date').dateTime = dateKey(today);
   byId('icon-day').textContent = today.getDate();
-  const hour = today.getHours();
-  byId('greeting').textContent = hour < 12 ? 'Good morning,' : hour < 18 ? 'Good afternoon,' : 'Good evening,';
   byId('month').textContent = format(monthStart, {month:'long', year:'numeric'});
   byId('previous').disabled = monthKey === '0001-01';
   byId('next').disabled = monthKey === '9999-12';
@@ -182,7 +176,7 @@ function storageError() {
   byId('error').hidden = false;
 }
 
-form.addEventListener('submit', event => {
+form.addEventListener('submit', async event => {
   event.preventDefault();
   const item = {title:byId('title').value.trim(), kind:byId('kind').value, date:byId('when').value, time:byId('time').value, notes:byId('notes').value.trim()};
   if (!item.title) {
@@ -193,7 +187,7 @@ form.addEventListener('submit', event => {
   if (!validEvent(item)) return;
   const id = editingId || crypto.randomUUID();
   try {
-    localStorage.setItem(eventPrefix + id, JSON.stringify(item));
+    await storageService.saveEvent(id,item);
   } catch { storageError(); return; }
   events.set(id, item);
   selected = parseDate(item.date);
@@ -202,13 +196,13 @@ form.addEventListener('submit', event => {
   byId('feedback').textContent = 'Saved ' + item.title;
 });
 
-byId('delete').addEventListener('click', () => {
+byId('delete').addEventListener('click', async () => {
   if (!confirmDelete) {
     confirmDelete = true;
     byId('delete').textContent = 'Confirm delete';
     return;
   }
-  try { localStorage.removeItem(eventPrefix + editingId); } catch { storageError(); return; }
+  try { await storageService.deleteEvent(editingId); } catch { storageError(); return; }
   events.delete(editingId);
   editor.close();
   displaySchedule();
@@ -239,21 +233,25 @@ function setTheme(theme) {
   byId('theme').setAttribute('aria-label', 'Switch to ' + nextLabel.toLowerCase());
   document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#201a1c' : '#f7f4fa';
 }
-function restoreTheme() {
+async function restoreTheme() {
   let value;
-  try { value = localStorage.getItem(themeKey); } catch { /* Use device appearance. */ }
+  try { value = await storageService.get('theme'); } catch { /* Use device appearance. */ }
   setTheme(['light','dark'].includes(value) ? value : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
 }
-byId('theme').addEventListener('click', () => {
+byId('theme').addEventListener('click', async () => {
   const theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
   setTheme(theme);
-  try { localStorage.setItem(themeKey, theme); } catch { /* Keep the choice for this visit. */ }
+  try { await storageService.set('theme',theme); } catch { /* Keep the choice for this visit. */ }
 });
-window.addEventListener('storage', event => {
-  if (!event.key || event.key.startsWith(eventPrefix)) { loadEvents(); displaySchedule(); }
-  if (!event.key || event.key === themeKey) restoreTheme();
+storageService.subscribe(key => {
+  if (key === 'events' || key === '*') loadEvents();
+  if (key === 'theme' || key === '*') restoreTheme();
+});
+byId('home-today').addEventListener('click', () => {
+  selected = parseDate(byId('home-today').dataset.date || dateKey(new Date()));
+  displaySchedule();
 });
 window.addEventListener('focus', () => { if (!editor.open) displaySchedule(); });
+setInterval(() => { if (!document.hidden && !byId('home-page').hidden) displaySchedule(); }, 30000);
 restoreTheme();
 loadEvents();
-displaySchedule();

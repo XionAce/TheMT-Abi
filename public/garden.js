@@ -17,36 +17,11 @@
   const pictures = new Map();
   let ink = colors.Plum;
   let drawing = null;
-  let dbPromise;
   let harvest = null;
   let saving = false;
   let revision = 0;
   let cursor = {x:.08, y:.79};
-  let channel;
   let drag = null;
-
-  function database() {
-    if (!dbPromise) {
-      dbPromise = new Promise((resolve, reject) => {
-        const request = indexedDB.open('abiverse-garden', 1);
-        request.onupgradeneeded = () => request.result.createObjectStore('doodles', {keyPath:'id'});
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      }).catch(error => { dbPromise = null; throw error; });
-    }
-    return dbPromise;
-  }
-
-  async function records(add) {
-    const db = await database();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction('doodles', add ? 'readwrite' : 'readonly');
-      const store = tx.objectStore('doodles');
-      const request = add ? store.add(add) : store.getAll();
-      tx.oncomplete = () => resolve(request.result);
-      tx.onabort = () => reject(tx.error || request.error);
-    });
-  }
 
   function openMemory(id) {
     const item = pictures.get(id);
@@ -64,17 +39,17 @@
   async function refresh(newId) {
     const version = ++revision;
     try {
-      const saved = await records();
+      const saved = await storageService.listDoodles();
       if (version !== revision) return;
       saved.sort((a,b) => a.created - b.created);
       const list = get('find-memory');
       list.replaceChildren(new Option('Choose a memory',''));
       const plants = document.createDocumentFragment();
       for (const [index, data] of saved.entries()) {
-        if (!pictures.has(data.id)) pictures.set(data.id, {url:URL.createObjectURL(data.image),note:data.note});
+        if (!pictures.has(data.id)) pictures.set(data.id, {url:data.image,note:data.note});
         const item = pictures.get(data.id);
         Object.assign(item, {created:data.created,x:data.x,y:data.y});
-        const label = 'Doodle ' + (index + 1) + (data.note ? ' Â· ' + data.note : '');
+        const label = 'Doodle ' + (index + 1) + (data.note ? ' · ' + data.note : '');
         const button = document.createElement('button');
         button.type = 'button';
         button.className = data.id === newId ? 'plant new' : 'plant';
@@ -147,14 +122,13 @@
     placementUI();
     const item = {...harvest, x:cursor.x, y:cursor.y, created:Date.now()};
     try {
-      await records(item);
+      await storageService.saveDoodle(item);
       harvest = null;
       strokes.length = 0;
       get('doodle-note').value = '';
       const beside = (item.x > .9 ? -54 : 54) / world.clientWidth;
       walk(item.x + beside, item.y + .015);
       await refresh(item.id);
-      channel?.postMessage('planted');
       get('garden-message').textContent = 'Planted! Tap your doodle to open its memory.';
     } catch {
       get('garden-message').textContent = 'The doodle could not be saved. Your drawing is still here. Check browser storage and try again.';
@@ -298,10 +272,9 @@
     placementUI();
     refresh();
   }
-  if ('BroadcastChannel' in window) {
-    channel = new BroadcastChannel('abiverse-garden');
-    channel.onmessage = enter;
-  }
+  storageService.subscribe((key, external) => {
+    if (external && (key === '*' || key.startsWith('doodle.'))) enter();
+  });
   window.addEventListener('hashchange',enter);
   window.addEventListener('focus',enter);
   enter();
