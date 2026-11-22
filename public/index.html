@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#F7F4FA">
+  <title>Study calendar · Abi’s planner</title>
+  <link rel="stylesheet" href="planner.css">
+  <script defer src="planner.js"></script>
+</head>
+<body>
+  <header class="mast"><div class="mast-inner">
+    <div class="brand"><span class="book" aria-hidden="true"><i></i><i></i><i></i></span><span>Abi’s planner</span></div>
+    <button id="theme" class="theme" type="button" aria-label="Switch to dark mode"><span aria-hidden="true">◐</span><span id="theme-label">Dark mode</span></button>
+  </div></header>
+  <main>
+    <div class="intro"><div><p id="date-line" class="date-line"></p><h1>Study calendar</h1></div>
+      <button id="add-event" class="primary" type="button"><b aria-hidden="true">+</b> Add event</button>
+    </div>
+    <div class="layout">
+      <section class="calendar" aria-label="Study calendar">
+        <div class="cal-top"><h2 id="month" aria-live="polite"></h2>
+          <div class="nav"><button type="button" id="previous" aria-label="Previous month"><i class="chevron left"></i></button><button type="button" id="today">Today</button><button type="button" id="next" aria-label="Next month"><i class="chevron"></i></button></div>
+        </div>
+        <div class="cal-sub"><div class="switch" aria-label="Calendar view" role="group"><button type="button" id="month-view" aria-pressed="true">Month</button><button type="button" id="list-view" aria-pressed="false">Agenda</button></div>
+          <div class="legend" aria-label="Event types"><span data-kind="Class">Class</span><span data-kind="Exam">Exam</span><span data-kind="Study">Study</span></div>
+        </div>
+        <div id="month-panel"><div class="weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div id="days" class="days" role="group" aria-label="Choose a day"></div></div>
+        <div id="agenda" class="agenda" hidden></div>
+      </section>
+      <aside aria-label="Selected day" class="day-card">
+        <div class="day-cover"><div class="cover-title">Daily schedule</div><div class="day-number" id="day-number"></div><h2 id="day-heading"></h2></div>
+        <div class="day-body"><div class="small-head"><h3>On the schedule</h3><span id="count"></span></div><div id="day-events"></div>
+          <button id="add-to-day" class="add-line" type="button">+ Add to this day</button>
+        </div>
+      </aside>
+    </div>
+    <p id="storage-note" class="storage-note" role="status">Events are saved in this browser.</p>
+  </main>
+  <dialog id="editor" aria-labelledby="editor-title">
+    <form id="entry">
+      <div class="form-head"><h2 id="editor-title">Add event</h2><button type="button" id="close" aria-label="Close event editor">×</button></div>
+      <label>Event name<input required maxlength="100" id="title" name="title" placeholder="e.g. Histology practical"></label>
+      <label><span id="type-label">Type</span><select name="kind" id="kind" aria-labelledby="type-label"><option>Class</option><option>Exam</option><option>Study</option></select></label>
+      <div class="fields"><label>Date<input required type="date" id="when" name="when" min="0001-01-01" max="9999-12-31"></label><label>Time (optional)<input type="time" id="time" name="time"></label></div>
+      <label>Notes (optional)<textarea rows="2" maxlength="1500" name="notes" id="notes" placeholder="Room, topics, or a reminder"></textarea></label>
+      <p id="error" role="alert" hidden></p>
+      <div class="actions"><button type="button" id="delete" hidden>Delete event</button><button type="submit" class="primary">Save event</button></div>
+    </form>
+  </dialog>
+  <div id="feedback" class="sr" role="status"></div>
+</body>
+</html>
