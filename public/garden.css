@@ -74,3 +74,14 @@
  @keyframes sprout{from{opacity:.25;transform:scale(.24)}to{opacity:1;transform:scale(1)}}
 }
 @media(max-width:600px){#garden-page .intro{align-items:start;flex-direction:column;gap:12px}#garden-hint{font-size:.92rem}#garden-world{height:clamp(335px,46svh,440px)}.meadow{border-radius:19px}.garden-footer label{font-size:.8rem}}
+
+.focus-flower{display:inline-block;width:44px;height:60px;position:relative;vertical-align:bottom;
+  background:radial-gradient(ellipse 11px 5px at 30% 78%,#88a17d 92%,transparent),
+    radial-gradient(ellipse 10px 5px at 67% 68%,#768e70 92%,transparent),
+    linear-gradient(#708367,#708367) center bottom / 3px 42px no-repeat}
+.focus-flower::before{content:"";position:absolute;inset:0 4px auto;height:36px;background:
+  radial-gradient(circle at 50% 50%,#f4ce86 0 5px,transparent 6px),
+  radial-gradient(circle at 50% 24%,var(--petal) 0 8px,transparent 9px),
+  radial-gradient(circle at 24% 51%,var(--petal) 0 8px,transparent 9px),
+  radial-gradient(circle at 76% 51%,var(--petal) 0 8px,transparent 9px),
+  radial-gradient(circle at 50% 76%,var(--petal) 0 8px,transparent 9px)}

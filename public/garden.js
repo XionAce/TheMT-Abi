@@ -24,13 +24,36 @@
   let cursor = {x:.08, y:.79};
   let drag = null;
 
+  function plantArt(item, alt = '') {
+    if (item.flower) {
+      const flower = document.createElement('span');
+      flower.className = 'focus-flower';
+      flower.style.setProperty('--petal', item.color);
+      flower.setAttribute('aria-hidden', 'true');
+      return flower;
+    }
+    const image = new Image();
+    image.alt = alt;
+    image.src = item.image;
+    return image;
+  }
+
+  function sessionFlower(session, index) {
+    return {
+      id: 'flower-' + session.id, flower: true,
+      color: ['#c895bc', '#eba89a', '#b4a6d3'][index % 3],
+      x: .05 + .9 * ((.08 + index * .618034) % 1),
+      y: .53 + .35 * ((.6 + index * .414214) % 1),
+      created: session.completedAt,
+      note: session.title + ' · ' + session.minutes + ' min',
+    };
+  }
+
   function openMemory(id) {
     const item = pictures.get(id);
     if (!item) return;
-    const image = new Image();
-    image.alt = 'Your original doodle';
-    image.src = item.url;
-    get('memory-image').replaceChildren(image);
+    get('memory-title').textContent = item.flower ? 'Focus flower' : 'Planted doodle';
+    get('memory-image').replaceChildren(plantArt(item, 'Your original doodle'));
     get('memory-note').textContent = item.note;
     get('memory-note').hidden = !item.note;
     get('memory-date').textContent = 'Planted ' + new Date(item.created).toLocaleDateString(undefined,{dateStyle:'long'});
@@ -40,17 +63,18 @@
   async function refresh(newId) {
     const version = ++revision;
     try {
-      const saved = await storageService.listDoodles();
+      const [saved, focus] = await Promise.all([storageService.listDoodles(), storageService.get('cozy')]);
       if (version !== revision) return;
       saved.sort((a,b) => a.created - b.created);
       const list = get('find-memory');
       list.replaceChildren(new Option('Choose a memory',''));
       const plants = document.createDocumentFragment();
-      for (const [index, data] of saved.entries()) {
-        if (!pictures.has(data.id)) pictures.set(data.id, {url:data.image,note:data.note});
-        const item = pictures.get(data.id);
-        Object.assign(item, {created:data.created,x:data.x,y:data.y});
-        const label = 'Doodle ' + (index + 1) + (data.note ? ' · ' + data.note : '');
+      const flowers = [...(focus?.sessions || [])].sort((a,b) => a.completedAt - b.completedAt).map(sessionFlower);
+      pictures.clear();
+      for (const [index, data] of [...saved, ...flowers].entries()) {
+        pictures.set(data.id, data);
+        const label = data.flower ? 'Focus flower · ' + data.note
+          : 'Doodle ' + (index + 1) + (data.note ? ' · ' + data.note : '');
         const button = document.createElement('button');
         button.type = 'button';
         button.className = data.id === newId ? 'plant new' : 'plant';
@@ -59,17 +83,16 @@
         button.setAttribute('aria-label',label);
         button.style.left = data.x * 100 + '%';
         button.style.top = data.y * 100 + '%';
-        const image = new Image();
-        image.alt = '';
-        image.src = item.url;
-        button.append(image);
+        button.append(plantArt(data));
         button.addEventListener('click',() => openMemory(data.id));
         plants.append(button);
         list.add(new Option(label, data.id));
       }
       get('garden-plots').replaceChildren(plants);
       get('garden-count').textContent = saved.length + (saved.length === 1 ? ' doodle' : ' doodles');
-      gardenEmpty = saved.length === 0;
+      if (flowers.length) get('garden-count').textContent += ' · ' + flowers.length +
+        (flowers.length === 1 ? ' focus flower' : ' focus flowers');
+      gardenEmpty = pictures.size === 0;
       placementUI();
     } catch {
       get('garden-message').textContent = 'Your garden could not be loaded. Check your storage or connection and reopen it.';
@@ -276,7 +299,7 @@
     refresh();
   }
   storageService.subscribe((key, external) => {
-    if (key === '*' || (external && key.startsWith('doodle.'))) enter();
+    if (key === '*' || key === 'cozy' || (external && key.startsWith('doodle.'))) enter();
   });
   window.addEventListener('hashchange',enter);
   window.addEventListener('focus',enter);

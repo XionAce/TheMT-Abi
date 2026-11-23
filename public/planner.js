@@ -75,7 +75,14 @@ function eventRow([id, item]) {
   row.append(element('small', '', item.kind + ' · ' + eventTime(item)), element('b', '', item.title));
   row.setAttribute('aria-label', 'Edit ' + item.title + ', ' + eventTime(item));
   row.addEventListener('click', () => openEditor(id));
-  return row;
+  const focus = element('button', 'soft-btn', 'Focus');
+  focus.type = 'button';
+  focus.dataset.focusEvent = id;
+  focus.dataset.focusTitle = item.title;
+  focus.setAttribute('aria-label', 'Start focus for ' + item.title);
+  const group = element('div', 'planner-focus-row');
+  group.append(row, focus);
+  return group;
 }
 
 function countdown(item, now) {

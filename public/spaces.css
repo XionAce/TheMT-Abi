@@ -71,3 +71,8 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 #account-footer{max-width:1260px;margin:0 auto;padding:0 clamp(16px,5vw,64px) 24px}
 #cloud-dialog p{margin:12px 0;line-height:1.5}
 #cloud-status:empty{display:none}
+
+.planner-focus-row{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+.planner-focus-row .soft-btn{min-height:44px}
+.study-week,.focus-subject{color:var(--muted);font-size:.88rem;margin:10px 0 0;overflow-wrap:anywhere}
+.focus-subject{font-weight:650}

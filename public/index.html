@@ -64,6 +64,7 @@
         <p class="desk-date"><span class="date-rule" aria-hidden="true"></span><time id="desk-date"></time></p>
         <h1 id="welcome" tabindex="-1"><span id="greeting">Welcome,</span> <em>Abi.</em></h1>
         <a class="today-link" href="#planner" id="home-today"><strong>Up Next</strong><span id="home-schedule" aria-busy="true">Loading upcoming events…</span></a>
+        <p id="study-week" class="study-week" hidden></p>
       </div>
       <div class="scene" aria-hidden="true">
         <div class="scene-orbit orbit-one"></div><div class="scene-orbit orbit-two"></div>
@@ -138,6 +139,7 @@
           <button data-mode="short">Short break</button>
           <button data-mode="long">Long break</button>
         </div>
+        <p id="focus-subject" class="focus-subject" hidden></p>
         <div class="dial"><output id="clock-face" role="timer" aria-live="off">25:00</output></div>
         <div class="timer-actions">
           <button id="start-pause" class="primary">Start</button>
@@ -200,7 +202,7 @@
     </section>
     <div class="garden-footer"><p><span id="garden-count">0 doodles</span> · <span id="garden-save-location">Saved in this browser</span></p>
       <button type="button" id="plant-here" class="primary" hidden>Plant beside the snail</button>
-      <label id="memory-picker" hidden>Find a doodle<select id="find-memory"><option value="">Choose a memory</option></select></label>
+      <label id="memory-picker" hidden>Find a memory<select id="find-memory"><option value="">Choose a memory</option></select></label>
     </div>
     <p id="garden-message" role="status"></p>
   </main>

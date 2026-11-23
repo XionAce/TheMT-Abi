@@ -231,6 +231,9 @@ const storageService = (() => {
       await updateCloudFocus(target, () => ({ timer: local.timer, intentions: [] }), state => {
         const ids = new Set(state.intentions.map(item => item.id));
         state.intentions.push(...local.intentions.filter(item => !ids.has(item.id)));
+        const sessions = state.sessions ??= [];
+        const imported = new Set(sessions.map(session => session.id));
+        sessions.push(...(local.sessions || []).filter(session => !imported.has(session.id)));
       });
     }
     notifyCloud(target, '*');

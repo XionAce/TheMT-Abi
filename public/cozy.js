@@ -7,6 +7,7 @@
   const defaults = () => ({
     timer: freshTimer('focus'),
     intentions: [],
+    sessions: [],
   });
   let state = defaults();
   let readVersion = 0;
@@ -22,16 +23,28 @@
   };
   function settle(s) {
     if (!s.timer.endsAt || s.timer.endsAt > Date.now()) return;
-    const message = s.timer.mode === 'focus' ? 'Focus session complete.' : 'Break complete.';
-    s.timer = freshTimer(s.timer.mode);
+    const timer = s.timer;
+    let message = 'Break complete.';
+    if (timer.mode === 'focus') {
+      const sessions = s.sessions ??= [];
+      const id = timer.sessionId || 'legacy-' + timer.endsAt;
+      if (!sessions.some(session => session.id === id)) {
+        sessions.push({
+          id, completedAt: timer.endsAt, minutes: durations.focus / 60,
+          eventId: timer.eventId ?? null, title: timer.title || 'Independent focus',
+        });
+      }
+      message = '25 minutes logged. A new flower is growing in your garden.';
+    }
+    s.timer = freshTimer(timer.mode);
     return message;
   }
   async function change(action) {
     try {
       const message = await storageService.update('cozy', defaults, (s) => {
         const completion = settle(s);
-        action(s);
-        return completion;
+        const notice = action(s);
+        return notice || completion;
       });
       if (message) status(message);
       return true;
@@ -82,8 +95,22 @@
     el('intention-card').append(burst);
     setTimeout(() => burst.remove(), 800);
   }
+  function showWeek() {
+    const now = new Date();
+    const monday = new Date(now);
+    monday.setHours(0, 0, 0, 0);
+    monday.setDate(monday.getDate() - (monday.getDay() + 6) % 7);
+    const week = (state.sessions || []).filter(s => s.completedAt >= monday && s.completedAt <= now);
+    const minutes = week.reduce((sum, session) => sum + session.minutes, 0);
+    el('study-week').textContent = 'Study this week · ' + minutes + ' min · ' + week.length +
+      (week.length === 1 ? ' session' : ' sessions');
+  }
   function render() {
     clock();
+    showWeek();
+    el('study-week').hidden = false;
+    el('focus-subject').hidden = !state.timer.title;
+    el('focus-subject').textContent = state.timer.title || '';
     const items = state.intentions.map((item) => {
       const row = create('li');
       const label = create('label');
@@ -141,8 +168,31 @@
       if (t.endsAt) {
         t.remaining = Math.max(0, t.endsAt - Date.now());
         t.endsAt = null;
-      } else t.endsAt = Date.now() + t.remaining;
+      } else {
+        if (t.mode === 'focus') t.sessionId ??= crypto.randomUUID();
+        t.endsAt = Date.now() + t.remaining;
+      }
     });
+  el('planner-page').addEventListener('click', async event => {
+    const launch = event.target.closest('[data-focus-event]');
+    if (!launch) return;
+    const saved = await change(s => {
+      const t = s.timer;
+      const inProgress = t.endsAt || t.remaining < durations[t.mode] * 1000;
+      if (inProgress && t.eventId !== launch.dataset.focusEvent) {
+        return 'Another timer is in progress. Finish or reset it before starting this task.';
+      }
+      if (!inProgress) s.timer = freshTimer('focus');
+      s.timer.sessionId ??= crypto.randomUUID();
+      s.timer.eventId = launch.dataset.focusEvent;
+      s.timer.title = launch.dataset.focusTitle;
+      s.timer.endsAt ??= Date.now() + s.timer.remaining;
+    });
+    if (saved) location.hash = 'focus';
+  });
+  setInterval(() => {
+    if (!document.hidden && !el('home-page').hidden && !el('study-week').hidden) showWeek();
+  }, 60000);
   el('timer-reset').onclick = () =>
     change((s) => {
       s.timer = freshTimer(s.timer.mode);
