@@ -9,6 +9,7 @@
   const seek = el('seek'),
     cover = el('cover'),
     scope = 'user-read-currently-playing user-modify-playback-state user-library-modify';
+  const builtInId = window.ABIVERSE_SPOTIFY_CLIENT_ID || '';
   const redirect = location.origin + location.pathname,
     accounts = 'https://accounts.spotify.com';
   let credentials = null,
@@ -54,7 +55,7 @@
       route: location.hash,
       at: Date.now(),
     });
-    await storageService.set('spotify.client', id);
+    if (!builtInId) await storageService.set('spotify.client', id);
     const params = new URLSearchParams({
       client_id: id,
       response_type: 'code',
@@ -64,20 +65,36 @@
       code_challenge_method: 'S256',
       code_challenge: encode(new Uint8Array(digest)),
     });
+    history.replaceState({ ...history.state, spotifySignInStarted: true }, '');
     location.assign(accounts + '/authorize?' + params);
   }
   async function connect() {
-    const id = SPOTIFY_CLIENT_ID || (await storageService.get('spotify.client'));
+    const id = builtInId || (await storageService.get('spotify.client'));
     if (id) return authorize(id);
+    showSetup('Set up Spotify once on this device.');
+  }
+  function showSetup(message) {
+    el('spotify-form').hidden = Boolean(builtInId);
+    el('auth-status').textContent = message;
     if (!setup.open) setup.showModal();
   }
   function authError(error) {
-    if (!setup.open) setup.showModal();
-    el('auth-status').textContent = error.message;
+    const message = error.message || 'Spotify sign-in failed. Please try again.';
+    showSetup(/redirect[ _-]*(uri|url)/i.test(message)
+      ? 'Spotify rejected the redirect URI. Register ' + redirect + ' exactly in the Spotify app settings and try again.'
+      : message);
   }
+  // Spotify may refuse an unregistered URI on its own page, without a callback.
+  window.addEventListener('pageshow', async () => {
+    if (!history.state?.spotifySignInStarted) return;
+    const { spotifySignInStarted, ...rest } = history.state;
+    history.replaceState(rest, '');
+    if (await storageService.get('spotify.auth').catch(() => null)) return;
+    showSetup('Sign-in did not finish. If Spotify showed “Invalid redirect URI”, register ' + redirect + ' exactly in the Spotify app settings, then connect again.');
+  });
   el('spotify-form').onsubmit = (e) => {
     e.preventDefault();
-    authorize(el('spotify-id').value.trim()).catch(authError);
+    authorize(builtInId || el('spotify-id').value.trim()).catch(authError);
   };
   async function tokenRequest(params) {
     const response = await fetch(accounts + '/api/token', {
@@ -103,7 +120,8 @@
     const key = 'spotify.pending.' + url.searchParams.get('state');
     const request = await storageService.get(key);
     const code = url.searchParams.get('code'),
-      denied = url.searchParams.has('error');
+      denied = url.searchParams.get('error'),
+      detail = url.searchParams.get('error_description');
     for (const k of ['code', 'state', 'error', 'error_description']) url.searchParams.delete(k);
     url.hash = request?.route || '#home';
     history.replaceState(null, '', url);
@@ -111,7 +129,7 @@
     if (request) await storageService.set(key, null);
     if (!request || Date.now() - request.at > 600000)
       throw new Error('This sign-in has expired. Connect again.');
-    if (denied) throw new Error('Spotify connection was cancelled.');
+    if (denied) throw new Error(denied === 'access_denied' ? 'Spotify connection was cancelled.' : detail || denied);
     const token = await tokenRequest({
       grant_type: 'authorization_code',
       code,

@@ -17,6 +17,7 @@
   const pictures = new Map();
   let ink = colors.Plum;
   let drawing = null;
+  let gardenEmpty = false;
   let harvest = null;
   let saving = false;
   let revision = 0;
@@ -68,7 +69,8 @@
       }
       get('garden-plots').replaceChildren(plants);
       get('garden-count').textContent = saved.length + (saved.length === 1 ? ' doodle' : ' doodles');
-      get('memory-picker').hidden = !saved.length || !!harvest;
+      gardenEmpty = saved.length === 0;
+      placementUI();
     } catch {
       get('garden-message').textContent = 'Your garden could not be loaded. Check your storage or connection and reopen it.';
     }
@@ -113,7 +115,8 @@
     get('garden-draw').disabled = saving;
     get('memory-picker').hidden = !pictures.size || !!harvest;
     for (const plant of get('garden-plots').children) plant.disabled = !!harvest;
-    get('garden-hint').textContent = harvest ? 'Tap a patch of grass to plant, or guide your snail and plant beside it.' : guide;
+    get('garden-hint').textContent = harvest ? 'Tap a patch of grass to plant, or guide your snail and plant beside it.' : gardenEmpty
+      ? 'Your meadow is ready. Choose “Plant a doodle” to grow your first memory.' : guide;
   }
 
   async function plant() {

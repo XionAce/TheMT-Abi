@@ -110,7 +110,7 @@
       return row;
     });
     if (!items.length) {
-      const empty = create('li', 'No intentions yet.');
+      const empty = create('li', 'Start small. Add one thing you’d like to finish this session.');
       empty.className = 'list-empty';
       items.push(empty);
     }

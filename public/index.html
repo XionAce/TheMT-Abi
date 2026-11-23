@@ -23,7 +23,7 @@
   <script defer src="garden.js"></script>
   <script defer src="cozy.js"></script>
   <script defer src="ambient.js"></script>
-  <script defer src="spotify-config.js"></script>
+  <script defer src="vendor/spotify-config.js"></script>
   <script defer src="spotify.js"></script>
 </head>
 <body>
@@ -63,7 +63,7 @@
       <div class="hello">
         <p class="desk-date"><span class="date-rule" aria-hidden="true"></span><time id="desk-date"></time></p>
         <h1 id="welcome" tabindex="-1"><span id="greeting">Welcome,</span> <em>Abi.</em></h1>
-        <a class="today-link" href="#planner" id="home-today"><strong>Up Next</strong><span id="home-schedule">Checking your planner…</span></a>
+        <a class="today-link" href="#planner" id="home-today"><strong>Up Next</strong><span id="home-schedule" aria-busy="true">Loading upcoming events…</span></a>
       </div>
       <div class="scene" aria-hidden="true">
         <div class="scene-orbit orbit-one"></div><div class="scene-orbit orbit-two"></div>
@@ -169,19 +169,17 @@
   </main>
   <p id="cozy-status" role="status"></p>
   <dialog id="spotify-setup" aria-labelledby="spotify-title">
-    <form id="spotify-form">
-      <div class="form-head">
-        <h2 id="spotify-title">Connect Spotify</h2>
-        <button type="button" id="spotify-close" aria-label="Close Spotify setup">×</button>
-      </div>
-      <p>Register this address as an exact redirect URI in your Spotify app settings.</p>
+    <div class="form-head">
+      <h2 id="spotify-title">Connect Spotify</h2>
+      <button type="button" id="spotify-close" aria-label="Close Spotify setup">×</button>
+    </div>
+    <p id="auth-status" role="status"></p>
+    <form id="spotify-form" hidden>
+      <p>Open your Spotify app’s settings in the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener noreferrer">Developer Dashboard</a>. Register this exact redirect URI and copy the public client ID.</p>
       <code id="redirect-address"></code>
-      <label>
-        Public Spotify client ID
-        <input id="spotify-id" required pattern="[A-Fa-f0-9]{32}" maxlength="32" autocomplete="off" />
-      </label>
+      <label>Public client ID<input id="spotify-id" required pattern="[A-Fa-f0-9]{32}" maxlength="32" autocomplete="off"></label>
+      <p>This device remembers the ID. After sign-in, play a song on a Spotify device and control it here.</p>
       <button class="primary">Continue to Spotify</button>
-      <p id="auth-status" role="status"></p>
     </form>
   </dialog>
   <main id="garden-page" hidden>

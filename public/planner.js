@@ -10,6 +10,7 @@ let agendaView = false;
 let editingId = null;
 let confirmDelete = false;
 let scheduleRead = 0;
+let scheduleState = 'loading';
 
 function makeDate(year, month, day) {
   const date = new Date(2000, 0, 1, 12);
@@ -43,10 +44,12 @@ async function loadEvents() {
     const stored = await storageService.listEvents();
     if (version !== scheduleRead) return;
     byId('storage-note').textContent = storageService.cloudEnabled() ? 'Your planner is saved to your account.' : 'Events are saved in this browser.';
+    scheduleState = 'ready';
     events.clear();
     for (const [id,item] of stored) if (validEvent(item)) events.set(id,item);
   } catch {
     if (version !== scheduleRead) return;
+    scheduleState = 'error';
     byId('storage-note').textContent = storageService.cloudEnabled() ? 'Unable to load your cloud planner. Check your connection and account.' : 'Browser storage is unavailable.';
   }
   displaySchedule();
@@ -75,6 +78,38 @@ function eventRow([id, item]) {
   return row;
 }
 
+function countdown(item, now) {
+  const start = parseDate(item.date);
+  if (!item.time) {
+    const todayAtNoon = makeDate(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Math.round((start - todayAtNoon) / 86400000);
+    return days ? 'in ' + days + (days === 1 ? ' day' : ' days') : 'Today';
+  }
+  const [hours, minutes] = item.time.split(':').map(Number);
+  start.setHours(hours, minutes, 0, 0);
+  const left = Math.ceil((start - now) / 60000);
+  if (left <= 0) return 'Now';
+  if (left < 60) return 'in ' + left + ' min';
+  const totalHours = Math.floor(left / 60);
+  if (totalHours < 24) return 'in ' + totalHours + ' hr' + (left % 60 ? ' ' + left % 60 + ' min' : '');
+  const days = Math.floor(totalHours / 24);
+  return 'in ' + days + (days === 1 ? ' day' : ' days') + (totalHours % 24 ? ' ' + totalHours % 24 + ' hr' : '');
+}
+
+function showUpNext(sorted, now) {
+  const day = dateKey(now);
+  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  const next = sorted.find(([,item]) => item.date > day || (item.date === day && (!item.time || item.time >= time)))?.[1];
+  const link = byId('home-today'), label = byId('home-schedule');
+  link.dataset.date = next?.date || day;
+  link.dataset.action = scheduleState === 'ready' && !next ? 'add' : 'view';
+  label.setAttribute('aria-busy', String(scheduleState === 'loading'));
+  if (scheduleState === 'loading') label.textContent = 'Loading upcoming events…';
+  else if (scheduleState === 'error') label.textContent = 'Couldn’t load your schedule. Open Planner.';
+  else if (!next) label.textContent = sorted.length ? 'You’re all caught up. Add an event' : 'Nothing scheduled yet. Add your first event';
+  else label.textContent = [next.title, format(parseDate(next.date), {month:'short', day:'numeric'}), eventTime(next), countdown(next, now)].join(' · ');
+}
+
 function displaySchedule() {
   const today = new Date();
   const monthStart = makeDate(selected.getFullYear(), selected.getMonth(), 1);
@@ -90,13 +125,7 @@ function displaySchedule() {
     grouped.get(date).push(entry);
   }
   byId('date-line').textContent = format(today, {weekday:'long', month:'long', day:'numeric', year:'numeric'});
-  const day = dateKey(today);
-  const time = String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0');
-  const next = sorted.find(([,item]) => item.date > day || (item.date === day && (!item.time || item.time >= time)))?.[1];
-  byId('home-today').dataset.date = next?.date || day;
-  byId('home-schedule').textContent = next
-    ? next.title + ' · ' + (next.date === day ? 'Today' : format(parseDate(next.date),{month:'short',day:'numeric'})) + ' · ' + eventTime(next)
-    : 'No upcoming deadlines — enjoy your day ✨';
+  showUpNext(sorted, today);
   byId('desk-date').textContent = format(today, {weekday:'long', month:'long', day:'numeric'});
   byId('desk-date').dateTime = dateKey(today);
   byId('icon-day').textContent = today.getDate();
@@ -252,7 +281,13 @@ storageService.subscribe(key => {
   if (key === 'events' || key === '*') loadEvents();
   if (key === 'theme' || key === '*') restoreTheme();
 });
-byId('home-today').addEventListener('click', () => {
+byId('home-today').addEventListener('click', event => {
+  if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+  if (event.currentTarget.dataset.action === 'add') {
+    window.addEventListener('hashchange', () => {
+      if (location.hash === '#planner') openEditor();
+    }, {once:true});
+  }
   selected = parseDate(byId('home-today').dataset.date || dateKey(new Date()));
   displaySchedule();
 });
@@ -261,6 +296,11 @@ window.addEventListener('focus', () => {
   if (storageService.cloudEnabled()) loadEvents();
   else displaySchedule();
 });
-setInterval(() => { if (!document.hidden && !byId('home-page').hidden) displaySchedule(); }, 30000);
+function refreshHomeCountdown() {
+  if (!document.hidden && (!location.hash || location.hash === '#home')) displaySchedule();
+}
+window.addEventListener('hashchange', refreshHomeCountdown);
+document.addEventListener('visibilitychange', refreshHomeCountdown);
+setInterval(refreshHomeCountdown, 30000);
 restoreTheme();
 loadEvents();
