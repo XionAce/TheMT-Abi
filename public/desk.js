@@ -11,11 +11,11 @@
   };
 
   function navigate(moveFocus) {
-    const pages = {home, planner, garden, focus:document.getElementById('focus-page'), jar:document.getElementById('jar-page')};
+    const pages = {home, planner, garden, focus:document.getElementById('focus-page')};
     const hash = location.hash.slice(1);
     const section = Object.hasOwn(pages, hash) ? hash : 'home';
     for (const [name, page] of Object.entries(pages)) page.hidden = name !== section;
-    const titles = {home:'AbiVerse', planner:'Planner · AbiVerse', garden:'Doodle Garden · AbiVerse', focus:'Focus & Cozy Room · AbiVerse', jar:'Little Jar · AbiVerse'};
+    const titles = {home:'AbiVerse', planner:'Planner · AbiVerse', garden:'Doodle Garden · AbiVerse', focus:'Focus & Cozy Room · AbiVerse'};
     document.title = titles[section];
     for (const link of document.querySelectorAll('.desk-nav a')) {
       if (link.hash === '#' + section) link.setAttribute('aria-current','page');

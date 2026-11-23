@@ -109,7 +109,6 @@ const storageService = (() => {
       write(key, value);
     },
     async update(key, initial, mutate) {
-      // The whole reward debit, receipt, and timer settlement commit in one write.
       const commit = () => {
         const state = read(key) ?? initial();
         const result = mutate(state);

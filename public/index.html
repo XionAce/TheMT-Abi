@@ -30,7 +30,7 @@
   <div id="pointer-light" aria-hidden="true"></div>
   <header class="mast"><div class="mast-inner">
     <a class="brand" href="#home" aria-label="AbiVerse home"><span class="lens-mark" aria-hidden="true"></span><span>AbiVerse</span></a>
-    <nav class="desk-nav" aria-label="Main navigation"><a href="#home" aria-current="page">Home</a><a href="#planner">Planner</a><a href="#garden">Garden</a><a href="#focus">Focus</a><a href="#jar">Jar</a></nav>
+    <nav class="desk-nav" aria-label="Main navigation"><a href="#home" aria-current="page">Home</a><a href="#planner">Planner</a><a href="#garden">Garden</a><a href="#focus">Focus</a></nav>
     <div id="spotify-island" class="music-island">
       <button id="music-toggle" type="button" aria-expanded="false" aria-controls="music-panel">
         <span class="record"><img id="cover" hidden alt="" /></span>
@@ -78,14 +78,6 @@
           <span class="island-copy">
             <strong>Focus &amp; Cozy Room</strong>
             <span>Timers, sound &amp; intentions</span>
-          </span>
-          <span class="island-end"><i class="chevron" aria-hidden="true"></i></span>
-        </a>
-        <a class="island jar-island" href="#jar">
-          <span class="island-visual" aria-hidden="true"><span class="mini-jar">✦</span></span>
-          <span class="island-copy">
-            <strong>Little Jar</strong>
-            <span>Sticky notes, stars &amp; treats</span>
           </span>
           <span class="island-end"><i class="chevron" aria-hidden="true"></i></span>
         </a>
@@ -150,7 +142,6 @@
           <button id="start-pause" class="primary">Start</button>
           <button id="timer-reset">Reset</button>
         </div>
-        <p class="details">One completed focus session earns one jar star.</p>
       </section>
       <div class="stack">
         <section class="space-card">
@@ -171,56 +162,6 @@
             <button class="soft-btn">Add</button>
           </form>
           <ul class="rows" id="intentions"></ul>
-        </section>
-      </div>
-    </div>
-  </main>
-  <main class="cozy-page" id="jar-page" hidden>
-    <div class="intro"><h1 tabindex="-1">Little Jar &amp; Sticky Notes</h1></div>
-    <div class="cozy-layout jar-layout">
-      <section class="space-card cork">
-        <h2>Sticky wall</h2>
-        <form id="pin-form">
-          <label for="pin">Pin a reminder, quote, or mood</label>
-          <textarea id="pin" rows="2" maxlength="400" required></textarea>
-          <button class="primary">Pin note</button>
-        </form>
-        <ul id="pins" class="notes-wall"></ul>
-      </section>
-      <div class="stack">
-        <section class="space-card treats">
-          <div class="jar-heading">
-            <span aria-hidden="true" class="mini-jar">✦</span>
-            <div>
-              <h2>Star jar</h2>
-              <strong id="balance">0 stars</strong>
-            </div>
-            <button class="soft-btn" id="add-star">+1 star</button>
-          </div>
-        </section>
-        <section class="space-card">
-          <h2>Reward coupons</h2>
-          <ul id="coupons" class="rows"></ul>
-          <details>
-            <summary>Customize coupons</summary>
-            <form id="coupon-form">
-              <input type="hidden" id="coupon-id" />
-              <label>
-                Reward
-                <input id="coupon-name" maxlength="100" required />
-              </label>
-              <label>
-                Star cost
-                <input id="coupon-cost" type="number" min="1" max="9999" value="3" required />
-              </label>
-              <button class="soft-btn">Save coupon</button>
-              <button type="button" id="coupon-cancel" hidden>Cancel edit</button>
-            </form>
-          </details>
-        </section>
-        <section class="space-card">
-          <h2>Redeemed treats</h2>
-          <ul id="receipts" class="rows"></ul>
         </section>
       </div>
     </div>
