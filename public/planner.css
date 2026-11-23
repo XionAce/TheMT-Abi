@@ -1,7 +1,7 @@
 :root {
   color-scheme: light;
   --bg:#f7f4fa; --panel:#fffeff; --text:#331e3d; --muted:#705f77; --accent:#4c2365; --on-accent:#fff;
-  --soft:#f0e9f5; --line:#e1d8e6; --faint:#89758e; --sel:#f2e8f9; --tint:#c4a4da;
+  --soft:#f0e9f5; --line:#e1d8e6; --faint:#705c77; --sel:#f2e8f9; --tint:#c4a4da;
   --cover:#4c2365; --cover-ink:#fff5fd; --cover-grid:#603879;
   --class:#7f5d99; --class-bg:#eee6f5; --exam:#a53f54; --exam-bg:#fde8ec; --study:#386e69; --study-bg:#e0f1eb;
   --shadow:0 8px 28px #42244f09;

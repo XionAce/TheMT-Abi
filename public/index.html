@@ -4,19 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#F7F4FA">
+  <meta name="description" content="Plan study days, focus on an exam, and grow a garden of doodles and study memories with AbiVerse.">
+  <meta property="og:title" content="AbiVerse">
+  <meta property="og:description" content="A cozy study planner, focus room, and doodle garden.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="https://mt-abi.vercel.app/study-desk.webp">
+  <meta property="og:image:alt" content="A microscope, notebooks, and pencil on Abi’s study desk">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="AbiVerse">
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-180.png">
-  <link rel="icon" href="icon-192.png">
+  <link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
   <title>AbiVerse</title>
   <link rel="stylesheet" href="planner.css">
   <link rel="stylesheet" href="desk.css">
   <link rel="stylesheet" href="garden.css">
   <link rel="stylesheet" href="spaces.css">
+  <script defer src="backup.js"></script>
   <script defer src="storageService.js"></script>
+  <script defer src="workspace-tools.js"></script>
   <script defer src="account.js"></script>
   <script defer src="planner.js"></script>
   <script defer src="desk.js"></script>
@@ -27,6 +35,7 @@
   <script defer src="spotify.js"></script>
 </head>
 <body>
+  <a class="skip-link" id="skip-content" href="#home-page">Skip to content</a>
   <div class="atmosphere" aria-hidden="true"></div>
   <div id="pointer-light" aria-hidden="true"></div>
   <header class="mast"><div class="mast-inner">
@@ -58,6 +67,7 @@
     </div>
     <button id="theme" class="theme" type="button" aria-label="Switch to dark mode"><span aria-hidden="true">◐</span><span id="theme-label">Dark mode</span></button>
   </div></header>
+  <p class="save-location"><span id="storage-mode" role="status">Checking storage…</span></p>
   <main id="home-page" class="desk-page">
     <section class="opening" aria-labelledby="welcome">
       <div class="hello">
@@ -66,10 +76,10 @@
         <a class="today-link" href="#planner" id="home-today"><strong>Up Next</strong><span id="home-schedule" aria-busy="true">Loading upcoming events…</span></a>
         <p id="study-week" class="study-week" hidden></p>
       </div>
-      <div class="scene" aria-hidden="true">
+      <div class="scene">
         <div class="scene-orbit orbit-one"></div><div class="scene-orbit orbit-two"></div>
-        <span class="glint glint-one">✦</span><span class="glint glint-two">✧</span>
-        <img id="desk-art" src="study-desk.webp" alt="" width="560" height="400" fetchpriority="high">
+        <span class="glint glint-one" aria-hidden="true">✦</span><span class="glint glint-two" aria-hidden="true">✧</span>
+        <img id="desk-art" src="study-desk.webp" alt="A microscope, notebooks, and pencil on Abi’s study desk" width="560" height="400" fetchpriority="high">
       </div>
     </section>
     <section class="spaces" aria-labelledby="spaces-heading">
@@ -188,7 +198,7 @@
     <div class="intro"><div><h1 tabindex="-1">Doodle Garden</h1><p id="garden-hint" aria-live="polite">Draw a little something and choose a spot to plant it.</p></div>
       <button type="button" id="garden-draw" class="primary">Plant a doodle</button></div>
     <section class="meadow" aria-label="Explore the garden">
-      <div id="garden-viewport" tabindex="0" aria-label="Open meadow. Swipe to explore, tap the grass to walk, or use the arrow keys.">
+      <div id="garden-viewport" role="group" tabindex="0" aria-label="Open meadow. Swipe to explore, tap the grass to walk, or use the arrow keys.">
         <div id="garden-world">
           <div class="landscape" aria-hidden="true"><i></i><i></i><i></i></div>
           <div class="willow" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -206,7 +216,13 @@
     </div>
     <p id="garden-message" role="status"></p>
   </main>
-  <footer id="account-footer"><button type="button" class="soft-btn" id="cloud-settings">Cloud sync</button></footer>
+  <footer id="account-footer">
+    <button type="button" class="soft-btn" id="cloud-settings">Cloud sync</button>
+    <button class="soft-btn" id="export-backup" type="button">Export JSON</button>
+    <button class="soft-btn" id="import-backup" type="button">Import JSON</button>
+    <input id="backup-file" type="file" accept="application/json,.json" hidden>
+    <p id="backup-status" role="status"></p>
+  </footer>
   <dialog id="cloud-dialog" aria-labelledby="cloud-title">
     <div class="form-head"><h2 id="cloud-title">Cloud account</h2><button id="cloud-close" type="button" aria-label="Close cloud account">×</button></div>
     <form id="cloud-auth">
@@ -214,6 +230,11 @@
       <label>Email<input id="cloud-email" type="email" autocomplete="username" required></label>
       <label>Password<input id="cloud-password" type="password" autocomplete="current-password" required></label>
       <div class="actions"><button id="cloud-signin" class="primary" type="submit">Sign in</button><button id="cloud-register" class="soft-btn" type="submit">Create account</button></div>
+      <div class="account-links"><button type="button" id="forgot-password">Forgot password?</button><button type="button" id="resend-email">Resend verification email</button></div>
+    </form>
+    <form id="reset-form" hidden>
+      <label>New password<input id="new-password" type="password" autocomplete="new-password" minlength="6" required></label>
+      <button class="primary" type="submit">Save new password</button>
     </form>
     <div id="cloud-account-actions" hidden>
       <p>Your work is saved in your Supabase account. You can also copy your existing planner, focus, and garden data from this device.</p>

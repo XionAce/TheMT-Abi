@@ -3,6 +3,8 @@
   "name": "AbiVerse",
   "short_name": "AbiVerse",
   "start_url": "/#home",
+  "description": "A personal study planner, focus timer, and doodle garden for Abi.",
+  "lang": "en",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f7f4fa",

@@ -39,6 +39,10 @@
   document.getElementById('preview-close').addEventListener('click', () => preview.close());
   window.addEventListener('hashchange', () => navigate(true));
   navigate(false);
+  document.getElementById('skip-content').onclick = event => {
+    event.preventDefault();
+    document.querySelector('main:not([hidden]) h1').focus();
+  };
 
   const motion = matchMedia('(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference)');
   const light = document.getElementById('pointer-light');

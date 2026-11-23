@@ -133,10 +133,23 @@ const storageService = (() => {
     if (result.error) throw result.error;
     return result.data;
   }
+  let connection = 'checking';
+  function connectionState(next) {
+    if (connection !== next) { connection = next; changed('cloud-state'); }
+  }
+  function databaseResult(result) {
+    connectionState(result.error ? 'unavailable' : 'connected');
+    return data(result);
+  }
   async function workspace(userId = owner()) {
     const db = await client();
-    const { session } = data(await db.auth.getSession());
-    if (!session || session.user.id !== userId) throw new Error('Sign in again to access your cloud workspace.');
+    const sessionResult = await db.auth.getSession();
+    if (sessionResult.error) connectionState('unavailable');
+    const { session } = data(sessionResult);
+    if (!session || session.user.id !== userId) {
+      connectionState('unavailable');
+      throw new Error('Sign in again to access your cloud workspace.');
+    }
     return { db, userId, email: session.user.email };
   }
   function query({ db, userId }, kind) {
@@ -153,7 +166,7 @@ const storageService = (() => {
     while (true) {
       let page = query(target, kind).order('record_key').limit(size);
       if (after !== undefined) page = page.gt('record_key', after);
-      const records = data(await page);
+      const records = databaseResult(await page);
       rows.push(...records.map(r => [r.record_key, r.payload]));
       if (records.length < size) return rows;
       after = records.at(-1).record_key;
@@ -169,11 +182,11 @@ const storageService = (() => {
   }
   async function saveCloud(kind, key, payload, notification) {
     const target = await workspace();
-    data(await target.db.from(table).upsert(record(target, kind, key, payload)));
+    databaseResult(await target.db.from(table).upsert(record(target, kind, key, payload)));
     notifyCloud(target, notification);
   }
   async function cloudFocus(target) {
-    return data(await query(target, 'focus').eq('record_key', 'current').maybeSingle());
+    return databaseResult(await query(target, 'focus').eq('record_key', 'current').maybeSingle());
   }
   // Reapply a focus action to the latest version when another device writes first.
   async function updateCloudFocus(target, initial, mutate) {
@@ -182,7 +195,7 @@ const storageService = (() => {
       const value = existing?.payload ?? initial();
       const result = mutate(value);
       if (existing) {
-        const rows = data(await target.db.from(table)
+        const rows = databaseResult(await target.db.from(table)
           .update({ payload: value, revision: crypto.randomUUID() })
           .eq('owner_id', target.userId).eq('kind', 'focus').eq('record_key', 'current')
           .eq('revision', existing.revision).select('record_key'));
@@ -190,7 +203,7 @@ const storageService = (() => {
       } else {
         const inserted = await target.db.from(table).insert(record(target, 'focus', 'current', value));
         if (inserted.error?.code === '23505') continue;
-        data(inserted);
+        databaseResult(inserted);
       }
       notifyCloud(target, 'cozy');
       return result;
@@ -204,6 +217,7 @@ const storageService = (() => {
       : await db.auth.signInWithPassword({ email, password });
     const { session } = data(result);
     if (!session) return false;
+    if (!session.user.email_confirmed_at) throw new Error('Verify your email before signing in.');
     // Switch workspaces only after the table is available to this account.
     data(await db.from(table).select('record_key').eq('owner_id', session.user.id).limit(1));
     write('cloud-owner', session.user.id);
@@ -214,33 +228,94 @@ const storageService = (() => {
     data(await db.auth.signOut({ scope: 'local' }));
     write('cloud-owner', null);
   }
+  async function mergeStudy(groups, local, target) {
+    try {
+      for (const [kind, items] of groups) {
+        if (target) {
+          for (let offset = 0; offset < items.length; offset += 10) {
+            const batch = items.slice(offset, offset + 10).map(([id, value]) => record(target, kind, id, value));
+            databaseResult(await target.db.from(table).upsert(batch, { ignoreDuplicates: true }));
+          }
+        } else {
+          for (const [id, value] of items) {
+            const key = kind === 'event' ? eventPrefix + id : prefix + 'doodle.' + id;
+            if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(value));
+          }
+        }
+      }
+      if (local) {
+        const initial = () => ({timer:local.timer, intentions:[], sessions:[]});
+        const merge = state => {
+          for (const name of ['intentions','sessions']) {
+            const rows = state[name] ??= [];
+            const ids = new Set(rows.map(row => row.id));
+            for (const row of local[name] || []) {
+              if (!ids.has(row.id)) { rows.push(row); ids.add(row.id); }
+            }
+          }
+        };
+        if (target) await updateCloudFocus(target, initial, merge);
+        else await storageService.update('cozy', initial, merge);
+      }
+    } finally {
+      if (target) notifyCloud(target, '*');
+      else changed('*', true);
+    }
+  }
   async function importDevice() {
     const target = await workspace();
     const groups = [
       ['event', entries(eventPrefix)],
       ['doodle', (await listDoodles()).map(item => [item.id, item])],
     ];
-    for (const [kind, items] of groups) {
-      for (let offset = 0; offset < items.length; offset += 10) {
-        const batch = items.slice(offset, offset + 10).map(([id, value]) => record(target, kind, id, value));
-        data(await target.db.from(table).upsert(batch, { ignoreDuplicates: true }));
-      }
+    await mergeStudy(groups, read('cozy'), target);
+  }
+  async function exportBackup() {
+    const [events, doodles, focus] = await Promise.all([
+      storageService.listEvents(), storageService.listDoodles(), storageService.get('cozy'),
+    ]);
+    return studyBackup.parse({app:'AbiVerse', version:1, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
+  }
+  async function importBackup(input) {
+    const file = studyBackup.parse(input);
+    const target = owner() ? await workspace() : null;
+    const events = file.events.map(({id, ...value}) => [id, value]);
+    await mergeStudy([['event', events], ['doodle', file.doodles.map(d => [d.id,d])]], file.focus, target);
+  }
+  // Recovery sessions live only in memory and never switch the active workspace.
+  async function openEmailLink(type, tokens) {
+    const db = await client();
+    if (type !== 'recovery') {
+      const {user} = data(await db.auth.getUser(tokens.access_token));
+      if (!user?.email_confirmed_at) throw new Error('Email verification is incomplete.');
+      return;
     }
-    const local = read('cozy');
-    if (local?.timer && Array.isArray(local.intentions)) {
-      await updateCloudFocus(target, () => ({ timer: local.timer, intentions: [] }), state => {
-        const ids = new Set(state.intentions.map(item => item.id));
-        state.intentions.push(...local.intentions.filter(item => !ids.has(item.id)));
-        const sessions = state.sessions ??= [];
-        const imported = new Set(sessions.map(session => session.id));
-        sessions.push(...(local.sessions || []).filter(session => !imported.has(session.id)));
-      });
-    }
-    notifyCloud(target, '*');
+    const recovery = window.supabase.createClient(projectUrl, publishableKey, {
+      auth: {storageKey:'abiverse-recovery', persistSession:false, autoRefreshToken:false, detectSessionInUrl:false},
+    });
+    data(await recovery.auth.setSession(tokens));
+    return async password => {
+      data(await recovery.auth.updateUser({password}));
+      await recovery.auth.signOut({scope:'local'});
+    };
   }
   return {
     cloudEnabled: () => Boolean(owner()),
-    signIn, signOut, importDevice,
+    signIn, signOut, importDevice, exportBackup, importBackup, openEmailLink,
+    connection: () => connection,
+    async checkCloud() {
+      if (!owner()) return;
+      try {
+        const target = await workspace();
+        databaseResult(await query(target, 'focus').limit(0));
+      } catch { connectionState('unavailable'); }
+    },
+    async sendAccountEmail(email, recovery) {
+      const db = await client();
+      const redirect = location.origin + location.pathname;
+      if (recovery) data(await db.auth.resetPasswordForEmail(email, {redirectTo:redirect}));
+      else data(await db.auth.resend({type:'signup', email, options:{emailRedirectTo:redirect}}));
+    },
     async accountEmail() { return (await workspace()).email; },
     async get(key) {
       if (key === 'cozy' && owner()) return (await cloudFocus(await workspace()))?.payload ?? null;
@@ -274,7 +349,7 @@ const storageService = (() => {
     async deleteEvent(id) {
       if (owner()) {
         const target = await workspace();
-        data(await target.db.from(table).delete().eq('owner_id', target.userId).eq('kind', 'event').eq('record_key', id));
+        databaseResult(await target.db.from(table).delete().eq('owner_id', target.userId).eq('kind', 'event').eq('record_key', id));
         notifyCloud(target, 'events');
         return;
       }

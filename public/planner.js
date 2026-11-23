@@ -309,5 +309,6 @@ function refreshHomeCountdown() {
 window.addEventListener('hashchange', refreshHomeCountdown);
 document.addEventListener('visibilitychange', refreshHomeCountdown);
 setInterval(refreshHomeCountdown, 30000);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', restoreTheme);
 restoreTheme();
 loadEvents();
