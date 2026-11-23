@@ -9,6 +9,7 @@ let selected = makeDate(new Date().getFullYear(), new Date().getMonth(), new Dat
 let agendaView = false;
 let editingId = null;
 let confirmDelete = false;
+let scheduleRead = 0;
 
 function makeDate(year, month, day) {
   const date = new Date(2000, 0, 1, 12);
@@ -37,12 +38,16 @@ function validEvent(item) {
 }
 
 async function loadEvents() {
+  const version = ++scheduleRead;
   try {
     const stored = await storageService.listEvents();
+    if (version !== scheduleRead) return;
+    byId('storage-note').textContent = storageService.cloudEnabled() ? 'Your planner is saved to your account.' : 'Events are saved in this browser.';
     events.clear();
     for (const [id,item] of stored) if (validEvent(item)) events.set(id,item);
   } catch {
-    byId('storage-note').textContent = 'Browser storage is unavailable.';
+    if (version !== scheduleRead) return;
+    byId('storage-note').textContent = storageService.cloudEnabled() ? 'Unable to load your cloud planner. Check your connection and account.' : 'Browser storage is unavailable.';
   }
   displaySchedule();
 }
@@ -172,7 +177,7 @@ function openEditor(id = null) {
 }
 
 function storageError() {
-  byId('error').textContent = 'Your browser couldn’t save this change. Check available storage and try again.';
+  byId('error').textContent = 'Couldn’t save this change. Check your storage or connection and try again.';
   byId('error').hidden = false;
 }
 
@@ -251,7 +256,11 @@ byId('home-today').addEventListener('click', () => {
   selected = parseDate(byId('home-today').dataset.date || dateKey(new Date()));
   displaySchedule();
 });
-window.addEventListener('focus', () => { if (!editor.open) displaySchedule(); });
+window.addEventListener('focus', () => {
+  if (editor.open) return;
+  if (storageService.cloudEnabled()) loadEvents();
+  else displaySchedule();
+});
 setInterval(() => { if (!document.hidden && !byId('home-page').hidden) displaySchedule(); }, 30000);
 restoreTheme();
 loadEvents();

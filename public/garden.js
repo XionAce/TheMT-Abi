@@ -49,7 +49,7 @@
         if (!pictures.has(data.id)) pictures.set(data.id, {url:data.image,note:data.note});
         const item = pictures.get(data.id);
         Object.assign(item, {created:data.created,x:data.x,y:data.y});
-        const label = 'Doodle ' + (index + 1) + (data.note ? ' · ' + data.note : '');
+        const label = 'Doodle ' + (index + 1) + (data.note ? ' Â· ' + data.note : '');
         const button = document.createElement('button');
         button.type = 'button';
         button.className = data.id === newId ? 'plant new' : 'plant';
@@ -70,7 +70,7 @@
       get('garden-count').textContent = saved.length + (saved.length === 1 ? ' doodle' : ' doodles');
       get('memory-picker').hidden = !saved.length || !!harvest;
     } catch {
-      get('garden-message').textContent = 'The garden could not open its browser storage. Allow site storage and reopen the garden.';
+      get('garden-message').textContent = 'Your garden could not be loaded. Check your storage or connection and reopen it.';
     }
   }
 
@@ -131,7 +131,7 @@
       await refresh(item.id);
       get('garden-message').textContent = 'Planted! Tap your doodle to open its memory.';
     } catch {
-      get('garden-message').textContent = 'The doodle could not be saved. Your drawing is still here. Check browser storage and try again.';
+      get('garden-message').textContent = 'The doodle could not be saved. Your drawing is still here. Check your storage or connection and try again.';
     } finally {
       saving = false;
       placementUI();
@@ -273,7 +273,7 @@
     refresh();
   }
   storageService.subscribe((key, external) => {
-    if (external && (key === '*' || key.startsWith('doodle.'))) enter();
+    if (key === '*' || (external && key.startsWith('doodle.'))) enter();
   });
   window.addEventListener('hashchange',enter);
   window.addEventListener('focus',enter);

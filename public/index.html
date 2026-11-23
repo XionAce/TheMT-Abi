@@ -17,6 +17,7 @@
   <link rel="stylesheet" href="garden.css">
   <link rel="stylesheet" href="spaces.css">
   <script defer src="storageService.js"></script>
+  <script defer src="account.js"></script>
   <script defer src="planner.js"></script>
   <script defer src="desk.js"></script>
   <script defer src="garden.js"></script>
@@ -199,12 +200,27 @@
       </div>
       <div class="garden-compass"><button type="button" id="walk-left" aria-label="Walk left">‹</button><span id="garden-place">Clover meadow</span><button type="button" id="walk-right" aria-label="Walk right">›</button></div>
     </section>
-    <div class="garden-footer"><p><span id="garden-count">0 doodles</span> · Saved in this browser</p>
+    <div class="garden-footer"><p><span id="garden-count">0 doodles</span> · <span id="garden-save-location">Saved in this browser</span></p>
       <button type="button" id="plant-here" class="primary" hidden>Plant beside the snail</button>
       <label id="memory-picker" hidden>Find a doodle<select id="find-memory"><option value="">Choose a memory</option></select></label>
     </div>
     <p id="garden-message" role="status"></p>
   </main>
+  <footer id="account-footer"><button type="button" class="soft-btn" id="cloud-settings">Cloud sync</button></footer>
+  <dialog id="cloud-dialog" aria-labelledby="cloud-title">
+    <div class="form-head"><h2 id="cloud-title">Cloud account</h2><button id="cloud-close" type="button" aria-label="Close cloud account">×</button></div>
+    <form id="cloud-auth">
+      <p>Sign in to use your planner, focus sessions, and garden on another device.</p>
+      <label>Email<input id="cloud-email" type="email" autocomplete="username" required></label>
+      <label>Password<input id="cloud-password" type="password" autocomplete="current-password" required></label>
+      <div class="actions"><button id="cloud-signin" class="primary" type="submit">Sign in</button><button id="cloud-register" class="soft-btn" type="submit">Create account</button></div>
+    </form>
+    <div id="cloud-account-actions" hidden>
+      <p>Your work is saved in your Supabase account. You can also copy your existing planner, focus, and garden data from this device.</p>
+      <div class="actions"><button id="cloud-import" class="soft-btn" type="button">Copy device work</button><button id="cloud-signout" class="soft-btn" type="button">Sign out</button></div>
+    </div>
+    <p id="cloud-status" role="status"></p>
+  </dialog>
   <dialog id="doodle-editor" aria-labelledby="draw-title">
     <div class="form-head"><h2 id="draw-title">Draw a doodle</h2><button type="button" id="draw-close" aria-label="Close drawing pad">×</button></div>
     <canvas id="draw-pad" width="640" height="640" aria-label="Draw with your Pencil, finger or mouse"></canvas>

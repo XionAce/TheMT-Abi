@@ -9,6 +9,7 @@
     intentions: [],
   });
   let state = defaults();
+  let readVersion = 0;
   let settling = false;
   let retrySettlementAfter = 0;
   let statusTimeout;
@@ -21,18 +22,21 @@
   };
   function settle(s) {
     if (!s.timer.endsAt || s.timer.endsAt > Date.now()) return;
-    status(s.timer.mode === 'focus' ? 'Focus session complete.' : 'Break complete.');
+    const message = s.timer.mode === 'focus' ? 'Focus session complete.' : 'Break complete.';
     s.timer = freshTimer(s.timer.mode);
+    return message;
   }
   async function change(action) {
     try {
-      await storageService.update('cozy', defaults, (s) => {
-        settle(s);
+      const message = await storageService.update('cozy', defaults, (s) => {
+        const completion = settle(s);
         action(s);
+        return completion;
       });
+      if (message) status(message);
       return true;
     } catch {
-      status('This change could not be saved in this browser.');
+      status('This change could not be saved. Please try again.');
       return false;
     }
   }
@@ -113,8 +117,11 @@
     el('intentions').replaceChildren(...items);
   }
   async function sync() {
+    const version = ++readVersion;
     try {
-      state = (await storageService.get('cozy')) ?? defaults();
+      const saved = await storageService.get('cozy');
+      if (version !== readVersion) return;
+      state = saved ?? defaults();
       render();
     } catch {
       status('Your saved space could not be read.');

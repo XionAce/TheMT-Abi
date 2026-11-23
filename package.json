@@ -1,0 +1,10 @@
+{
+  "name": "abiverse",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build.cjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.119.2"
+  }
+}

@@ -67,3 +67,7 @@ body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bot
 @media(max-width:360px){.music-island:not(.connected) .record{display:none}}
 @media(max-width:700px){.cozy-layout{grid-template-columns:1fr}.cozy-page .intro{margin:20px 0}.music-island #music-panel{right:-45px}.space-card{padding:18px}}
 @media(prefers-reduced-motion:reduce){.confetti{display:none}}
+
+#account-footer{max-width:1260px;margin:0 auto;padding:0 clamp(16px,5vw,64px) 24px}
+#cloud-dialog p{margin:12px 0;line-height:1.5}
+#cloud-status:empty{display:none}
