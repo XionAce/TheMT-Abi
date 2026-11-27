@@ -27,6 +27,7 @@
   <script defer src="workspace-tools.js"></script>
   <script defer src="account.js"></script>
   <script defer src="planner.js"></script>
+  <script defer src="planner-reminders.js"></script>
   <script defer src="desk.js"></script>
   <script defer src="garden.js"></script>
   <script defer src="cozy.js"></script>
@@ -125,7 +126,7 @@
         <div class="cal-top"><h2 id="month" aria-live="polite"></h2>
           <div class="nav"><button type="button" id="previous" aria-label="Previous month"><i class="chevron left"></i></button><button type="button" id="today">Today</button><button type="button" id="next" aria-label="Next month"><i class="chevron"></i></button></div>
         </div>
-        <div class="cal-sub"><div class="switch" aria-label="Calendar view" role="group"><button type="button" id="month-view" aria-pressed="true">Month</button><button type="button" id="list-view" aria-pressed="false">Agenda</button></div>
+        <div class="cal-sub"><div class="switch" aria-label="Calendar view" role="group"><button type="button" id="month-view" aria-pressed="true">Month</button><button type="button" id="week-view" aria-pressed="false">Week</button><button type="button" id="list-view" aria-pressed="false">Agenda</button></div>
           <div class="legend" aria-label="Event types"><span data-kind="Class">Class</span><span data-kind="Exam">Exam</span><span data-kind="Study">Study</span></div>
         </div>
         <div id="month-panel"><div class="weekdays" aria-hidden="true"><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div><div id="days" class="days" role="group" aria-label="Choose a day"></div></div>
@@ -138,6 +139,15 @@
         </div>
       </aside>
     </div>
+    <section id="exam-panel" class="planner-extras" hidden aria-labelledby="exam-heading">
+      <h2 id="exam-heading">Upcoming exams</h2><ul id="exam-countdowns"></ul>
+    </section>
+    <section class="planner-extras" aria-labelledby="reminder-heading">
+      <h2 id="reminder-heading">Event reminders</h2>
+      <p id="reminder-help">While AbiVerse is open, get a reminder 10 minutes before timed events and at 9 am for all-day events.</p>
+      <button type="button" id="reminder-toggle" class="soft-btn" aria-describedby="reminder-help" aria-pressed="false">Enable reminders</button>
+      <p id="reminder-status" role="status"></p>
+    </section>
     <p id="storage-note" class="storage-note" role="status">Events are saved in this browser.</p>
   </main>
   <main class="cozy-page" id="focus-page" hidden>
@@ -263,6 +273,14 @@
       <label>Event name<input required maxlength="100" id="title" name="title" placeholder="e.g. Histology practical"></label>
       <label><span id="type-label">Type</span><select name="kind" id="kind" aria-labelledby="type-label"><option>Class</option><option>Exam</option><option>Study</option></select></label>
       <div class="fields"><label>Date<input required type="date" id="when" name="when" min="0001-01-01" max="9999-12-31"></label><label>Time (optional)<input type="time" id="time" name="time"></label></div>
+      <div id="class-options">
+        <label class="check-line"><input type="checkbox" id="repeat-class"> Repeat weekly</label>
+        <fieldset id="class-rule" hidden><legend>Class days</legend>
+          <div id="class-days"></div>
+          <label>Last class date (optional)<input type="date" id="repeat-until" max="9999-12-31"></label>
+        </fieldset>
+      </div>
+      <p id="series-note" class="storage-note" hidden>Changes and deletion apply to the entire class series.</p>
       <label>Notes (optional)<textarea rows="2" maxlength="1500" name="notes" id="notes" placeholder="Room, topics, or a reminder"></textarea></label>
       <p id="error" role="alert" hidden></p>
       <div class="actions"><button type="button" id="delete" hidden>Delete event</button><button type="submit" class="primary">Save event</button></div>

@@ -40,7 +40,9 @@ const studyBackup = (() => {
     check(file?.app === 'AbiVerse' && file.version === 1);
     const events = unique(file.events, e => {
       check(validEvent(e));
-      return {id:id(e.id), title:e.title, date:e.date, time:e.time, kind:e.kind, notes:e.notes};
+      const event = {id:id(e.id), title:e.title, date:e.date, time:e.time, kind:e.kind, notes:e.notes};
+      if (e.weekly) event.weekly = {days:[...e.weekly.days], until:e.weekly.until};
+      return event;
     });
     const doodles = unique(file.doodles, d => {
       check(typeof d.image === 'string' && /^data:image\/png;base64,iVBORw0KGgo[A-Za-z0-9+/]*={0,2}$/.test(d.image));

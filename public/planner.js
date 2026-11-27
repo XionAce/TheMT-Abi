@@ -6,8 +6,9 @@ const events = new Map();
 const editor = byId('editor');
 const form = byId('entry');
 let selected = makeDate(new Date().getFullYear(), new Date().getMonth(), new Date().getDate());
-let agendaView = false;
+let calendarView = 'month';
 let editingId = null;
+let editingDay = null;
 let confirmDelete = false;
 let scheduleRead = 0;
 let scheduleState = 'loading';
@@ -31,10 +32,47 @@ function format(date, options) {
   return date.toLocaleDateString('en-US', options);
 }
 
+function validDay(key) {
+  return typeof key === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(key) &&
+    key >= '0001-01-01' && dateKey(parseDate(key)) === key;
+}
+
+function addDays(date, days) {
+  return makeDate(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function validWeekly(rule) {
+  return rule && Array.isArray(rule.days) && rule.days.length > 0 && rule.days.length <= 7 &&
+    new Set(rule.days).size === rule.days.length &&
+    rule.days.every(day => Number.isInteger(day) && day >= 0 && day <= 6);
+}
+
+function occursOn(item, date, key) {
+  if (!item.weekly) return item.date === key;
+  return key >= item.date && (!item.weekly.until || key <= item.weekly.until) &&
+    item.weekly.days.includes(date.getDay());
+}
+
+function nextOccurrence(item, now) {
+  const today = dateKey(now);
+  const time = now.toTimeString().slice(0, 5);
+  if (!item.weekly) {
+    return item.date > today || (item.date === today && (!item.time || item.time >= time)) ? item : null;
+  }
+  const start = parseDate(item.date > today ? item.date : today);
+  for (let i = 0; i <= 7; i++) {
+    const date = addDays(start, i), key = dateKey(date);
+    if (date.getFullYear() > 9999 || (item.weekly.until && key > item.weekly.until)) break;
+    if (occursOn(item, date, key) && !(key === today && item.time && item.time < time)) return {...item, date:key};
+  }
+  return null;
+}
+
 function validEvent(item) {
   return item && typeof item.title === 'string' && item.title.trim() &&
-    kinds.includes(item.kind) && /^\d{4}-\d{2}-\d{2}$/.test(item.date) &&
-    dateKey(parseDate(item.date)) === item.date && item.date >= '0001-01-01' &&
+    kinds.includes(item.kind) && validDay(item.date) &&
+    (item.weekly == null || (item.kind === 'Class' && validWeekly(item.weekly) &&
+      (item.weekly.until === '' || (validDay(item.weekly.until) && item.weekly.until >= item.date)))) &&
     (item.time === '' || /^([01]\d|2[0-3]):[0-5]\d$/.test(item.time)) && typeof item.notes === 'string';
 }
 
@@ -72,9 +110,9 @@ function eventRow([id, item]) {
   const row = element('button', 'event-row');
   row.type = 'button';
   row.dataset.kind = item.kind;
-  row.append(element('small', '', item.kind + ' · ' + eventTime(item)), element('b', '', item.title));
+  row.append(element('small', '', item.kind + (item.weekly ? ' · Weekly' : '') + ' · ' + eventTime(item)), element('b', '', item.title));
   row.setAttribute('aria-label', 'Edit ' + item.title + ', ' + eventTime(item));
-  row.addEventListener('click', () => openEditor(id));
+  row.addEventListener('click', () => openEditor(id, item.date));
   const focus = element('button', 'soft-btn', 'Focus');
   focus.type = 'button';
   focus.dataset.focusEvent = id;
@@ -103,17 +141,26 @@ function countdown(item, now) {
   return 'in ' + days + (days === 1 ? ' day' : ' days') + (totalHours % 24 ? ' ' + totalHours % 24 + ' hr' : '');
 }
 
-function showUpNext(sorted, now) {
+function updateUpcoming(now) {
   const day = dateKey(now);
-  const time = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
-  const next = sorted.find(([,item]) => item.date > day || (item.date === day && (!item.time || item.time >= time)))?.[1];
+  const upcoming = [...events.values()].map(item => nextOccurrence(item, now)).filter(Boolean)
+    .sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time) || a.title.localeCompare(b.title));
+  const exams = upcoming.filter(item => item.kind === 'Exam');
+  byId('exam-panel').hidden = !exams.length || scheduleState !== 'ready';
+  byId('exam-countdowns').replaceChildren(...exams.map(exam => {
+    const row = element('li');
+    row.append(element('strong', '', exam.title), element('span', '',
+      format(parseDate(exam.date), {month:'short',day:'numeric'}) + ' · ' + eventTime(exam) + ' · ' + countdown(exam, now)));
+    return row;
+  }));
+  const next = upcoming[0];
   const link = byId('home-today'), label = byId('home-schedule');
   link.dataset.date = next?.date || day;
   link.dataset.action = scheduleState === 'ready' && !next ? 'add' : 'view';
   label.setAttribute('aria-busy', String(scheduleState === 'loading'));
   if (scheduleState === 'loading') label.textContent = 'Loading upcoming events…';
   else if (scheduleState === 'error') label.textContent = 'Couldn’t load your schedule. Open Planner.';
-  else if (!next) label.textContent = sorted.length ? 'You’re all caught up. Add an event' : 'Nothing scheduled yet. Add your first event';
+  else if (!next) label.textContent = events.size ? 'You’re all caught up. Add an event' : 'Nothing scheduled yet. Add your first event';
   else label.textContent = [next.title, format(parseDate(next.date), {month:'short', day:'numeric'}), eventTime(next), countdown(next, now)].join(' · ');
 }
 
@@ -123,34 +170,39 @@ function displaySchedule() {
   const monthEnd = makeDate(selected.getFullYear(), selected.getMonth() + 1, 0);
   const monthKey = dateKey(selected).slice(0, 7);
   const selectedKey = dateKey(selected);
-  const sorted = [...events].sort(([, a], [, b]) =>
-    a.date.localeCompare(b.date) || a.time.localeCompare(b.time) || a.title.localeCompare(b.title));
+  const week = calendarView === 'week';
+  const anchor = week ? selected : monthStart;
+  const offset = (anchor.getDay() + 6) % 7;
+  const first = addDays(anchor, -offset);
+  const cellCount = week ? 7 : Math.ceil((offset + monthEnd.getDate()) / 7) * 7;
   const grouped = new Map();
-  for (const entry of sorted) {
-    const date = entry[1].date;
-    if (!grouped.has(date)) grouped.set(date, []);
-    grouped.get(date).push(entry);
-  }
   byId('date-line').textContent = format(today, {weekday:'long', month:'long', day:'numeric', year:'numeric'});
-  showUpNext(sorted, today);
+  updateUpcoming(today);
   byId('desk-date').textContent = format(today, {weekday:'long', month:'long', day:'numeric'});
   byId('desk-date').dateTime = dateKey(today);
   byId('icon-day').textContent = today.getDate();
-  byId('month').textContent = format(monthStart, {month:'long', year:'numeric'});
-  byId('previous').disabled = monthKey === '0001-01';
-  byId('next').disabled = monthKey === '9999-12';
-  byId('month-panel').hidden = agendaView;
-  byId('agenda').hidden = !agendaView;
-  byId('month-view').setAttribute('aria-pressed', String(!agendaView));
-  byId('list-view').setAttribute('aria-pressed', String(agendaView));
-
-  const offset = (monthStart.getDay() + 6) % 7;
-  const cellCount = Math.ceil((offset + monthEnd.getDate()) / 7) * 7;
+  const last = addDays(first, cellCount - 1);
+  const rangeFormat = new Intl.DateTimeFormat('en-US', {month:'short',day:'numeric',year:'numeric'});
+  byId('month').textContent = week ? rangeFormat.formatRange(first, last)
+    : format(monthStart, {month:'long', year:'numeric'});
+  byId('previous').disabled = week ? dateKey(first) <= '0001-01-01' : monthKey === '0001-01';
+  byId('next').disabled = week ? last.getFullYear() > 9999 || dateKey(last) === '9999-12-31' : monthKey === '9999-12';
+  for (const [id,label] of [['previous','Previous'],['next','Next']]) {
+    byId(id).setAttribute('aria-label', label + (week ? ' week' : ' month'));
+  }
+  byId('month-panel').hidden = calendarView === 'agenda';
+  byId('agenda').hidden = calendarView === 'month';
+  for (const [id,view] of [['month-view','month'],['week-view','week'],['list-view','agenda']]) {
+    byId(id).setAttribute('aria-pressed', String(calendarView === view));
+  }
   const days = document.createDocumentFragment();
   for (let i = 0; i < cellCount; i++) {
-    const date = makeDate(selected.getFullYear(), selected.getMonth(), 1 - offset + i);
+    const date = addDays(first, i);
     const key = dateKey(date);
-    const daily = grouped.get(key) || [];
+    const daily = validDay(key) ? [...events].filter(([, item]) => occursOn(item, date, key))
+      .map(([id,item]) => [id, item.weekly ? {...item, date:key} : item])
+      .sort(([,a],[,b]) => a.time.localeCompare(b.time) || a.title.localeCompare(b.title)) : [];
+    if (daily.length) grouped.set(key, daily);
     const day = element('button', 'cell');
     day.type = 'button';
     day.dataset.date = key;
@@ -174,11 +226,11 @@ function displaySchedule() {
 
   const agenda = document.createDocumentFragment();
   for (const [key, daily] of grouped) {
-    if (!key.startsWith(monthKey + '-')) continue;
+    if (!week && !key.startsWith(monthKey + '-')) continue;
     agenda.append(element('h3', '', format(parseDate(key), {weekday:'long', month:'short', day:'numeric'})));
     agenda.append(...daily.map(eventRow));
   }
-  if (!agenda.childNodes.length) agenda.append(element('p', 'empty', 'No events this month.'));
+  if (!agenda.childNodes.length) agenda.append(element('p', 'empty', week ? 'No events this week.' : 'No events this month.'));
   byId('agenda').replaceChildren(agenda);
   const daily = grouped.get(selectedKey) || [];
   byId('day-number').textContent = String(selected.getDate()).padStart(2, '0');
@@ -187,14 +239,44 @@ function displaySchedule() {
   byId('day-events').replaceChildren(...(daily.length ? daily.map(eventRow) : [element('p', 'empty', 'Nothing scheduled for this day.')]));
 }
 
-function changeMonth(delta) {
+function changePeriod(delta) {
+  if (calendarView === 'week') {
+    const date = addDays(selected, 7 * delta);
+    selected = date.getFullYear() < 1 ? parseDate('0001-01-01') :
+      date.getFullYear() > 9999 ? parseDate('9999-12-31') : date;
+    displaySchedule();
+    return;
+  }
   const lastDay = makeDate(selected.getFullYear(), selected.getMonth() + delta + 1, 0);
   selected = makeDate(lastDay.getFullYear(), lastDay.getMonth(), Math.min(selected.getDate(), lastDay.getDate()));
   displaySchedule();
 }
 
-function openEditor(id = null) {
+const weekdays = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+for (const day of [1,2,3,4,5,6,0]) {
+  const label = element('label');
+  const check = element('input');
+  check.type = 'checkbox';
+  check.value = day;
+  label.append(check, weekdays[day]);
+  byId('class-days').append(label);
+}
+
+function updateClassOptions() {
+  const isClass = byId('kind').value === 'Class';
+  const weekly = isClass && byId('repeat-class').checked;
+  byId('class-options').hidden = !isClass;
+  byId('class-rule').hidden = byId('class-rule').disabled = !weekly;
+  byId('repeat-until').min = byId('when').value;
+  if (weekly && byId('when').value && !byId('class-days').querySelector(':checked')) {
+    byId('class-days').querySelector('[value="' + parseDate(byId('when').value).getDay() + '"]').checked = true;
+  }
+}
+for (const id of ['kind','repeat-class','when']) byId(id).addEventListener('change', updateClassOptions);
+
+function openEditor(id = null, occurrenceDay = null) {
   editingId = id;
+  editingDay = occurrenceDay;
   confirmDelete = false;
   const item = events.get(id);
   form.reset();
@@ -205,8 +287,13 @@ function openEditor(id = null) {
   byId('when').value = item?.date || dateKey(selected);
   byId('time').value = item?.time || '';
   byId('notes').value = item?.notes || '';
+  byId('repeat-class').checked = Boolean(item?.weekly);
+  for (const input of byId('class-days').querySelectorAll('input')) input.checked = item?.weekly?.days.includes(Number(input.value)) || false;
+  byId('repeat-until').value = item?.weekly?.until || '';
+  byId('series-note').hidden = !item?.weekly;
+  updateClassOptions();
   byId('delete').hidden = !item;
-  byId('delete').textContent = 'Delete event';
+  byId('delete').textContent = item?.weekly ? 'Delete series' : 'Delete event';
   byId('editor-title').textContent = item ? 'Edit event' : 'Add event';
   editor.showModal();
   byId('title').focus();
@@ -220,10 +307,24 @@ function storageError() {
 form.addEventListener('submit', async event => {
   event.preventDefault();
   const item = {title:byId('title').value.trim(), kind:byId('kind').value, date:byId('when').value, time:byId('time').value, notes:byId('notes').value.trim()};
+  let savedDay = item.date;
   if (!item.title) {
     byId('title').setCustomValidity('Enter an event name.');
     byId('title').reportValidity();
     return;
+  }
+  if (item.kind === 'Class' && byId('repeat-class').checked) {
+    const days = [...byId('class-days').querySelectorAll(':checked')].map(input => Number(input.value));
+    item.weekly = {days, until:byId('repeat-until').value};
+    const start = parseDate(item.date);
+    start.setHours(0,0,0,0);
+    const first = nextOccurrence(item, start);
+    if (!days.length || !first) {
+      byId('error').textContent = 'Choose a class day within the schedule dates.';
+      byId('error').hidden = false;
+      return;
+    }
+    savedDay = editingDay && occursOn(item, parseDate(editingDay), editingDay) ? editingDay : first.date;
   }
   if (!validEvent(item)) return;
   const id = editingId || crypto.randomUUID();
@@ -231,7 +332,7 @@ form.addEventListener('submit', async event => {
     await storageService.saveEvent(id,item);
   } catch { storageError(); return; }
   events.set(id, item);
-  selected = parseDate(item.date);
+  selected = parseDate(savedDay);
   editor.close();
   displaySchedule();
   byId('feedback').textContent = 'Saved ' + item.title;
@@ -240,7 +341,7 @@ form.addEventListener('submit', async event => {
 byId('delete').addEventListener('click', async () => {
   if (!confirmDelete) {
     confirmDelete = true;
-    byId('delete').textContent = 'Confirm delete';
+    byId('delete').textContent = events.get(editingId)?.weekly ? 'Confirm delete series' : 'Confirm delete';
     return;
   }
   try { await storageService.deleteEvent(editingId); } catch { storageError(); return; }
@@ -257,11 +358,12 @@ byId('days').addEventListener('click', event => {
   displaySchedule();
   byId('days').querySelector('.chosen').focus({preventScroll:true});
 });
-byId('previous').addEventListener('click', () => changeMonth(-1));
-byId('next').addEventListener('click', () => changeMonth(1));
+byId('previous').addEventListener('click', () => changePeriod(-1));
+byId('next').addEventListener('click', () => changePeriod(1));
 byId('today').addEventListener('click', () => { selected = parseDate(dateKey(new Date())); displaySchedule(); });
-byId('month-view').addEventListener('click', () => { agendaView = false; displaySchedule(); });
-byId('list-view').addEventListener('click', () => { agendaView = true; displaySchedule(); });
+for (const [id,view] of [['month-view','month'],['week-view','week'],['list-view','agenda']]) {
+  byId(id).onclick = () => { calendarView = view; displaySchedule(); };
+}
 byId('add-event').addEventListener('click', () => openEditor());
 byId('add-to-day').addEventListener('click', () => openEditor());
 byId('close').addEventListener('click', () => editor.close());
@@ -304,7 +406,7 @@ window.addEventListener('focus', () => {
   else displaySchedule();
 });
 function refreshHomeCountdown() {
-  if (!document.hidden && (!location.hash || location.hash === '#home')) displaySchedule();
+  if (!document.hidden) updateUpcoming(new Date());
 }
 window.addEventListener('hashchange', refreshHomeCountdown);
 document.addEventListener('visibilitychange', refreshHomeCountdown);

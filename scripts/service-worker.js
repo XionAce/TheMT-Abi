@@ -22,3 +22,19 @@ self.addEventListener('fetch', event => {
   if (!FILES.includes(key) || (!home && url.search)) return;
   event.respondWith(caches.open(CACHE).then(async cache => (await cache.match(key)) || fetch(request)));
 });
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const date = event.notification.data?.date;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({type:'window', includeUncontrolled:true});
+    const page = windows.find(client => ['/', '/index.html'].includes(new URL(client.url).pathname));
+    if (page) {
+      await page.focus();
+      page.postMessage({type:'planner-reminder', date});
+    } else {
+      await self.clients.openWindow('/?plannerDay=' + date + '#planner');
+    }
+  })());
+});
