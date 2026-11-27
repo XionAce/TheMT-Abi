@@ -30,8 +30,9 @@
     const hash = location.hash.slice(1);
     const section = Object.hasOwn(pages, hash) ? hash : 'home';
     for (const [name, page] of Object.entries(pages)) page.hidden = name !== section;
-    const titles = {home:'AbiVerse', planner:'Planner · AbiVerse', garden:'Doodle Garden · AbiVerse', focus:'Focus & Cozy Room · AbiVerse'};
-    document.title = titles[section];
+    const brand = document.getElementById('brand-name').textContent;
+    const titles = {planner:'Planner', garden:'Doodle Garden', focus:'Focus & Cozy Room'};
+    document.title = section === 'home' ? brand : titles[section] + ' · ' + brand;
     for (const link of document.querySelectorAll('.desk-nav a')) {
       if (link.hash === '#' + section) link.setAttribute('aria-current','page');
       else link.removeAttribute('aria-current');

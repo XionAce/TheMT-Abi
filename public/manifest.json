@@ -1,9 +1,9 @@
 {
   "id": "/",
-  "name": "AbiVerse",
-  "short_name": "AbiVerse",
+  "name": "MTVerse",
+  "short_name": "MTVerse",
   "start_url": "/#home",
-  "description": "A personal study planner, focus timer, and doodle garden for Abi.",
+  "description": "A personal study planner, focus timer, and doodle garden for medtech students.",
   "lang": "en",
   "scope": "/",
   "display": "standalone",

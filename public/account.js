@@ -1,114 +1,116 @@
 'use strict';
 
-(() => {
+(async () => {
   const el = id => document.getElementById(id);
-  const dialog = el('cloud-dialog');
-  const form = el('cloud-auth');
-  const status = el('cloud-status');
-  const fragment = new URLSearchParams(location.hash.slice(1));
-  const emailLink = fragment.has('access_token') || fragment.has('error_description') || fragment.has('error');
-  if (emailLink) history.replaceState(null, '', location.pathname + location.search + '#home');
-  let updatePassword;
-  const enabled = storageService.cloudEnabled();
-  form.hidden = enabled;
-  el('cloud-account-actions').hidden = !enabled;
-  function showStorage() {
-    const state = storageService.connection();
-    const mode = !enabled ? 'Saved only on this device'
-      : !navigator.onLine ? 'Cloud storage · Offline'
-      : state === 'connected' ? 'Cloud storage · Connected'
-      : state === 'checking' ? 'Cloud storage · Connecting…' : 'Cloud storage · Unavailable';
-    el('storage-mode').textContent = mode;
-    el('garden-save-location').textContent = mode;
-    if (enabled) el('storage-note').textContent = mode;
+  const app = el('study-app');
+  const login = new URL('/login.html', location.origin);
+  const route = location.hash.slice(1);
+  if (['planner','focus','garden'].includes(route)) login.searchParams.set('next', route);
+  const day = new URL(location.href).searchParams.get('plannerDay');
+  if (route === 'planner' && /^\d{4}-\d{2}-\d{2}$/.test(day)) login.searchParams.set('plannerDay', day);
+  el('session-login').href = login.href;
+  el('retry-session').onclick = () => location.reload();
+  const legacy = new URLSearchParams(location.hash.slice(1));
+  if (legacy.has('access_token') || legacy.has('error_description')) {
+    login.hash = location.hash;
+    location.replace(login);
+    return;
   }
-  storageService.subscribe(key => { if (key === 'cloud-state') showStorage(); });
-  window.addEventListener('offline', showStorage);
-  window.addEventListener('online', () => { showStorage(); storageService.checkCloud(); });
-  showStorage();
-  if (enabled) storageService.checkCloud();
-  el('cloud-settings').onclick = async () => {
-    status.textContent = '';
-    dialog.showModal();
-    if (updatePassword) { el('new-password').focus(); return; }
-    if (!enabled) return;
-    try {
-      const email = await storageService.accountEmail();
-      form.hidden = true;
-      status.textContent = 'Signed in as ' + email;
-    } catch {
-      form.hidden = false;
-      status.textContent = 'Sign in again to access your saved work.';
+  function leave() {
+    const destination = app.hidden ? login : '/login.html';
+    app.hidden = true;
+    location.replace(destination);
+  }
+  window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+  try {
+    const account = await storageService.openWorkspace(leave);
+    if (!account) { leave(); return; }
+    const {user, desk} = account;
+    const brand = desk ? 'AbiVerse' : 'MTVerse';
+    el('brand-name').textContent = brand;
+    el('brand-name').parentElement.setAttribute('aria-label', brand + ' home');
+    if (desk) {
+      el('greeting').textContent = 'Welcome,';
+      el('desk-name').textContent = 'Abi.';
+      el('private-desk').hidden = false;
+      el('desk-note').value = desk.note;
+      pinNote(desk.note);
     }
-  };
-  el('cloud-close').onclick = () => dialog.close();
-  async function run(action) {
-    const controls = dialog.querySelectorAll('button:not(#cloud-close)');
-    controls.forEach(b => b.disabled = true);
-    status.textContent = 'Connecting…';
-    try { await action(); }
-    catch (e) {
-      status.textContent = ['PGRST205', '42501'].includes(e.code)
-        ? 'Cloud storage is awaiting database setup. Your device workspace is available.'
-        : e.message || 'Could not reach your account. Please try again.';
-    } finally { controls.forEach(b => b.disabled = false); }
-  }
-  form.onsubmit = event => {
-    event.preventDefault();
-    const register = event.submitter?.id === 'cloud-register';
-    run(async () => {
-      const signedIn = await storageService.signIn(el('cloud-email').value.trim(), el('cloud-password').value, register);
-      el('cloud-password').value = '';
-      if (signedIn) location.reload();
-      else status.textContent = 'Check your email to confirm your account, then sign in here.';
-    });
-  };
-  for (const [id, recovery] of [['forgot-password', true], ['resend-email', false]]) {
-    el(id).onclick = () => {
-      const email = el('cloud-email');
-      if (!email.reportValidity()) return;
+    function pinNote(text) {
+      el('pinned-note').textContent = text;
+      el('pinned-note').hidden = !text;
+    }
+    const status = el('cloud-status');
+    async function run(action) {
+      const controls = el('cloud-dialog').querySelectorAll('button:not(#cloud-close)');
+      controls.forEach(b => b.disabled = true);
+      status.textContent = 'One moment…';
+      try { await action(); }
+      catch (e) { status.textContent = e.message || 'Could not save. Please try again.'; }
+      finally { controls.forEach(b => b.disabled = false); }
+    }
+    el('desk-note-form').onsubmit = event => {
+      event.preventDefault();
       run(async () => {
-        await storageService.sendAccountEmail(email.value.trim(), recovery);
-        status.textContent = recovery ? 'If your account exists, check your email for a reset link.'
-          : 'Check your inbox for a verification link if your email is awaiting confirmation.';
+        const note = el('desk-note').value.trim();
+        await storageService.saveDeskNote(note);
+        pinNote(note);
+        status.textContent = note ? 'Note pinned to Home.' : 'Note removed.';
       });
     };
-  }
-  if (emailLink) {
-    dialog.showModal();
-    run(async () => {
-      if (fragment.has('error') || fragment.has('error_description'))
-        throw new Error('This email link is invalid or expired. Request a new link.');
-      const tokens = {access_token:fragment.get('access_token'), refresh_token:fragment.get('refresh_token')};
-      fragment.delete('access_token');
-      fragment.delete('refresh_token');
-      updatePassword = await storageService.openEmailLink(fragment.get('type'), tokens);
-      if (updatePassword) {
-        form.hidden = el('cloud-account-actions').hidden = true;
-        el('reset-form').hidden = false;
-        status.textContent = 'Choose a new password for your account.';
-        el('new-password').focus();
-      } else status.textContent = 'Email verified. You can now sign in.';
+    function showStorage() {
+      const state = storageService.connection();
+      const mode = !navigator.onLine ? 'Offline' : state === 'unavailable' ? 'Could not reach your account' : 'Saved to your account';
+      el('storage-mode').textContent = el('garden-save-location').textContent = mode;
+    }
+    storageService.subscribe(key => { if (key === 'cloud-state') showStorage(); });
+    window.addEventListener('offline', showStorage);
+    window.addEventListener('online', () => storageService.checkCloud());
+    showStorage();
+    el('account-email').textContent = user.email;
+    const linked = user.identities?.some(i => i.provider === 'google');
+    el('link-google').hidden = Boolean(linked);
+    el('cloud-settings').onclick = () => {
+      status.textContent = linked ? 'Google is connected.' : '';
+      el('cloud-dialog').showModal();
+    };
+    el('cloud-close').onclick = () => el('cloud-dialog').close();
+    el('link-google').onclick = () => run(() => storageService.google(true));
+    el('change-email-form').onsubmit = event => {
+      event.preventDefault();
+      run(async () => {
+        await storageService.changeEmail(el('recovery-email').value.trim());
+        status.textContent = 'Check your current and new inboxes for the confirmation instructions.';
+        el('change-email-form').reset();
+      });
+    };
+    el('cloud-signout').onclick = () => run(async () => { await storageService.signOut(); location.replace('/login.html'); });
+    el('cloud-import').onclick = () => run(async () => {
+      await storageService.importDevice();
+      status.textContent = 'Device work copied. Existing account records were kept.';
     });
+    // Load study modules only after the server verifies the account and workspace.
+    for (const file of ['backup','workspace-tools','planner','planner-reminders','desk','garden','cozy','ambient','vendor/spotify-config','spotify']) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = file + '.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('The study desk could not load.'));
+        document.head.append(script);
+      });
+    }
+    el('session-check').hidden = true;
+    app.hidden = false;
+  } catch (error) {
+    app.hidden = true;
+    const setup = ['PGRST205','42501'].includes(error.code);
+    el('session-status').textContent = setup ? 'Your study desk is awaiting database setup. Please try again later.'
+      : 'Could not verify your workspace. Check your connection or sign in again.';
+    el('retry-session').hidden = false;
+    el('exit-session').hidden = false;
+    el('exit-session').onclick = async () => {
+      try { await storageService.signOut(); location.replace('/login.html'); }
+      catch { el('session-status').textContent = 'Could not sign out. Reconnect and try again.'; }
+    };
   }
-  el('reset-form').onsubmit = e => {
-    e.preventDefault();
-    run(async () => {
-      await updatePassword(el('new-password').value);
-      updatePassword = null;
-      el('reset-form').reset();
-      el('reset-form').hidden = true;
-      form.hidden = enabled;
-      el('cloud-account-actions').hidden = !enabled;
-      status.textContent = 'Password updated.';
-    });
-  };
-  el('cloud-signout').onclick = () => run(async () => {
-    await storageService.signOut();
-    location.reload();
-  });
-  el('cloud-import').onclick = () => run(async () => {
-    await storageService.importDevice();
-    status.textContent = 'Device work copied. Existing account records were kept.';
-  });
 })();

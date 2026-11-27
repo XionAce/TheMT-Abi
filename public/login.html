@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#f7f4fa">
+  <title>Sign in · MTVerse</title>
+  <link rel="icon" href="icon-192.png">
+  <link rel="stylesheet" href="planner.css">
+  <link rel="stylesheet" href="desk.css">
+  <link rel="stylesheet" href="login.css">
+  <script defer src="storageService.js"></script>
+  <script defer src="login.js"></script>
+</head>
+<body class="login-page">
+  <div class="atmosphere" aria-hidden="true"></div>
+  <main class="login-layout">
+    <div class="login-art">
+      <span class="brand"><span class="lens-mark" aria-hidden="true"></span>MTVerse</span>
+      <img src="study-desk.webp" alt="" width="560" height="400">
+    </div>
+    <section class="login-card" aria-labelledby="login-title">
+      <h1 id="login-title">Welcome back.</h1>
+      <p id="login-intro">Sign in to your study desk.</p>
+      <button class="google-button" id="google-login" type="button">Continue with Google</button>
+      <div class="login-divider" id="login-divider">or</div>
+      <form id="login-form">
+        <label id="email-label">Email<input id="email" type="email" autocomplete="username" required></label>
+        <label id="password-label">Password<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary" id="submit-login" type="submit">Sign in</button>
+      </form>
+      <div class="login-links">
+        <button id="change-mode" type="button">Create an account</button>
+        <button id="forgot" type="button">Forgot password?</button>
+        <button id="resend" type="button" hidden>Resend verification email</button>
+      </div>
+      <p id="login-status" role="status"></p>
+      <noscript>Enable JavaScript to sign in.</noscript>
+    </section>
+  </main>
+</body>
+</html>
