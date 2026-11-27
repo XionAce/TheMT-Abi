@@ -42,6 +42,7 @@
   <header class="mast"><div class="mast-inner">
     <a class="brand" href="#home" aria-label="AbiVerse home"><span class="lens-mark" aria-hidden="true"></span><span>AbiVerse</span></a>
     <nav class="desk-nav" aria-label="Main navigation"><a href="#home" aria-current="page">Home</a><a href="#planner">Planner</a><a href="#garden">Garden</a><a href="#focus">Focus</a></nav>
+    <div class="mast-actions">
     <div id="spotify-island" class="music-island">
       <button id="music-toggle" type="button" aria-expanded="false" aria-controls="music-panel">
         <span class="record"><img id="cover" hidden alt="" /></span>
@@ -66,9 +67,11 @@
         <button id="disconnect" type="button">Disconnect</button>
       </section>
     </div>
-    <button id="theme" class="theme" type="button" aria-label="Switch to dark mode"><span aria-hidden="true">◐</span><span id="theme-label">Dark mode</span></button>
+    <button id="theme" class="theme" type="button" aria-label="Dark mode" aria-pressed="false">
+      <span class="theme-track" aria-hidden="true"><span>&#9728;&#xfe0e;</span><span>&#9790;</span></span>
+    </button>
+    </div>
   </div></header>
-  <p class="save-location"><span id="storage-mode" role="status">Checking storage…</span></p>
   <main id="home-page" class="desk-page">
     <section class="opening" aria-labelledby="welcome">
       <div class="hello">
@@ -82,9 +85,10 @@
         <span class="glint glint-one" aria-hidden="true">✦</span><span class="glint glint-two" aria-hidden="true">✧</span>
         <img id="desk-art" src="study-desk.webp" alt="A microscope, notebooks, and pencil on Abi’s study desk" width="560" height="400" fetchpriority="high">
       </div>
+      <button type="button" class="explore-spaces" id="explore-spaces" aria-controls="spaces-heading">Your spaces <i aria-hidden="true"></i></button>
     </section>
     <section class="spaces" aria-labelledby="spaces-heading">
-      <div class="spaces-heading"><h2 id="spaces-heading">Your spaces</h2><span aria-hidden="true"></span></div>
+      <div class="spaces-heading"><h2 id="spaces-heading" tabindex="-1">Your spaces</h2><span aria-hidden="true"></span></div>
       <div class="islands">
         <a class="island focus-island" href="#focus">
           <span class="island-visual" aria-hidden="true"><span class="mini-mug"></span></span>
@@ -227,14 +231,11 @@
     <p id="garden-message" role="status"></p>
   </main>
   <footer id="account-footer">
-    <button type="button" class="soft-btn" id="cloud-settings">Cloud sync</button>
-    <button class="soft-btn" id="export-backup" type="button">Export JSON</button>
-    <button class="soft-btn" id="import-backup" type="button">Import JSON</button>
-    <input id="backup-file" type="file" accept="application/json,.json" hidden>
-    <p id="backup-status" role="status"></p>
+    <button type="button" id="cloud-settings" aria-haspopup="dialog">My account</button>
   </footer>
   <dialog id="cloud-dialog" aria-labelledby="cloud-title">
-    <div class="form-head"><h2 id="cloud-title">Cloud account</h2><button id="cloud-close" type="button" aria-label="Close cloud account">×</button></div>
+    <div class="form-head"><h2 id="cloud-title">My account</h2><button id="cloud-close" type="button" aria-label="Close account">×</button></div>
+    <p id="storage-mode" role="status"></p>
     <form id="cloud-auth">
       <p>Sign in to use your planner, focus sessions, and garden on another device.</p>
       <label>Email<input id="cloud-email" type="email" autocomplete="username" required></label>
@@ -247,10 +248,17 @@
       <button class="primary" type="submit">Save new password</button>
     </form>
     <div id="cloud-account-actions" hidden>
-      <p>Your work is saved in your Supabase account. You can also copy your existing planner, focus, and garden data from this device.</p>
+      <p>Your work is saved in your account. You can also copy your existing planner, focus, and garden data from this device.</p>
       <div class="actions"><button id="cloud-import" class="soft-btn" type="button">Copy device work</button><button id="cloud-signout" class="soft-btn" type="button">Sign out</button></div>
     </div>
     <p id="cloud-status" role="status"></p>
+    <details class="backup-options">
+      <summary>Study backups</summary>
+      <button class="soft-btn" id="export-backup" type="button">Download a copy</button>
+      <button class="soft-btn" id="import-backup" type="button">Restore a copy</button>
+      <input id="backup-file" type="file" accept="application/json,.json" hidden>
+      <p id="backup-status" role="status"></p>
+    </details>
   </dialog>
   <dialog id="doodle-editor" aria-labelledby="draw-title">
     <div class="form-head"><h2 id="draw-title">Draw a doodle</h2><button type="button" id="draw-close" aria-label="Close drawing pad">×</button></div>

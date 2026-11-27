@@ -10,7 +10,6 @@
   if (emailLink) history.replaceState(null, '', location.pathname + location.search + '#home');
   let updatePassword;
   const enabled = storageService.cloudEnabled();
-  el('cloud-settings').textContent = enabled ? 'Cloud account' : 'Cloud sync';
   form.hidden = enabled;
   el('cloud-account-actions').hidden = !enabled;
   function showStorage() {

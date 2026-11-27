@@ -371,9 +371,7 @@ byId('title').addEventListener('input', () => byId('title').setCustomValidity(''
 
 function setTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  const nextLabel = theme === 'dark' ? 'Light mode' : 'Dark mode';
-  byId('theme-label').textContent = nextLabel;
-  byId('theme').setAttribute('aria-label', 'Switch to ' + nextLabel.toLowerCase());
+  byId('theme').setAttribute('aria-pressed', String(theme === 'dark'));
   document.querySelector('meta[name="theme-color"]').content = theme === 'dark' ? '#201a1c' : '#f7f4fa';
 }
 async function restoreTheme() {

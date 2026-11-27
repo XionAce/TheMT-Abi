@@ -11,10 +11,16 @@
 }
 body{isolation:isolate;min-height:100vh;min-height:100svh}
 .atmosphere{position:fixed;inset:0;z-index:-2;pointer-events:none;background:
-  radial-gradient(ellipse at 82% 23%,color-mix(in srgb,var(--warm-mist) 68%,transparent),transparent 36%),
-  radial-gradient(ellipse at 71% 51%,var(--mist),transparent 49%),
-  radial-gradient(ellipse at 18% 92%,color-mix(in srgb,var(--mist) 56%,transparent),transparent 45%),
-  var(--bg)}
+  radial-gradient(ellipse at 82% 23%,#f6cbbead,transparent 36%),
+  radial-gradient(ellipse at 71% 51%,#cdafe3,transparent 49%),
+  radial-gradient(ellipse at 18% 92%,#cdafe38f,transparent 45%),
+  #f7f4fa}
+.atmosphere::before{content:"";position:absolute;inset:0;opacity:0;background:
+  radial-gradient(ellipse at 82% 23%,#713f38ad,transparent 36%),
+  radial-gradient(ellipse at 71% 51%,#6a405a,transparent 49%),
+  radial-gradient(ellipse at 18% 92%,#6a405a8f,transparent 45%),#201a1c}
+[data-theme=dark] .atmosphere::before{opacity:1}
+@media(prefers-reduced-motion:no-preference){.atmosphere::before{transition:opacity .34s ease}}
 .atmosphere::after{content:"";position:absolute;inset:0;opacity:.23;background-image:radial-gradient(var(--faint) .55px,transparent .7px);background-size:5px 5px;mask-image:linear-gradient(115deg,#000,transparent 73%)}
 #pointer-light{display:none;position:fixed;left:0;top:0;width:300px;height:300px;z-index:-1;pointer-events:none;border-radius:50%;background:radial-gradient(closest-side,var(--shine),transparent);opacity:0;transition:opacity .25s}
 .mast{border:0;background:transparent}
@@ -94,7 +100,7 @@ a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
 @media(max-width:700px){
   .mast-inner{min-height:65px;gap:7px}.brand{font-size:1.1rem;gap:6px}.lens-mark{width:25px;height:25px}
   .desk-nav{position:static;transform:none;margin-left:auto}.desk-nav a{padding-inline:11px;min-height:34px}
-  .theme{justify-content:center;width:42px;padding:0}.theme #theme-label{display:none}
+  .theme{justify-content:center;width:42px;padding:0}
   .opening{grid-template-columns:minmax(0,1fr) minmax(120px,39%);min-height:235px}
   .hello{padding-block:14px}.hello h1{font-size:clamp(2.45rem,7.9vw,3.3rem);line-height:1.04;margin:12px 0 6px}.hello h1 em{display:block}
   .desk-date{font-size:.7rem;letter-spacing:.06em;gap:7px}.date-rule{width:14px}
@@ -105,3 +111,35 @@ a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}
 }
 @media(max-width:370px){.brand{font-size:1rem}.desk-nav a{padding-inline:8px}.island{gap:9px;padding-inline:12px}.desk-date{font-size:.67rem}.date-rule{display:none}.opening{min-height:220px}}
 @media(pointer:coarse){.desk-nav a,.theme{min-height:44px}}
+
+/* One opening screen, with the next section within reach of touch and keyboard. */
+.opening{
+  min-height:calc(100vh - var(--mast-height,80px));
+  min-height:calc(100dvh - var(--mast-height,80px));
+  padding-block:clamp(20px,5vh,56px) max(72px,calc(44px + env(safe-area-inset-bottom)));
+}
+.scene{align-self:center;height:clamp(245px,51vh,520px)}
+.scene img{max-height:none}
+.explore-spaces{position:absolute;bottom:max(12px,env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:11px;min-height:44px;padding:8px 14px;border-radius:24px;color:var(--muted);font-size:.84rem}
+.explore-spaces i{width:8px;height:8px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg) translateY(-2px)}
+.explore-spaces:hover{color:var(--accent);background:var(--glass)}
+#spaces-heading{scroll-margin-block-start:calc(var(--mast-height,80px) + 16px)}
+@media(max-width:700px) and (min-height:540px){
+  .opening{grid-template-columns:minmax(0,1fr);align-content:center;gap:clamp(10px,2vh,28px)}
+  .hello{padding:0;text-align:center}
+  .desk-date,.today-link{justify-content:center}
+  .hello h1{font-size:clamp(2.6rem,10vw,4rem);margin:14px 0}
+  .hello h1 em{display:inline}
+  .scene{width:min(100%,460px);height:clamp(145px,32vh,320px);justify-self:center}
+  .scene img{width:100%;left:0}
+}
+@media(max-height:540px){
+  .opening{padding-block:12px 56px}
+  .scene{min-height:0;height:clamp(135px,48vh,240px)}
+}
+@media(prefers-reduced-motion:no-preference){
+  .hello h1 em,.desk-date,.explore-spaces{transition:color .3s}
+  .explore-spaces i{transition:translate .2s}
+  .explore-spaces:hover i,.explore-spaces:focus-visible i{translate:0 3px}
+}

@@ -10,6 +10,21 @@
     review: {title:'Review', description:'Planned for this space: hide a label on a lecture image, name what you see, and flip it over to check your answer.'}
   };
 
+  const mast = document.querySelector('.mast');
+  const measureMast = () => document.documentElement.style.setProperty('--mast-height', mast.offsetHeight + 'px');
+  measureMast();
+  new ResizeObserver(measureMast).observe(mast);
+  document.getElementById('explore-spaces').onclick = () => {
+    const heading = document.getElementById('spaces-heading');
+    heading.focus({preventScroll:true});
+    heading.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth'});
+  };
+  document.querySelectorAll('a[href="#home"]').forEach(link => link.addEventListener('click', event => {
+    if (location.hash === '#home' && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+      window.scrollTo({top:0, behavior:'instant'});
+    }
+  }));
+
   function navigate(moveFocus) {
     const pages = {home, planner, garden, focus:document.getElementById('focus-page')};
     const hash = location.hash.slice(1);
