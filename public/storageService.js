@@ -227,11 +227,14 @@ const storageService = (() => {
     data(await db.auth.signOut({scope:'local'}));
     activeUser = null;
   }
-  async function google(link = false) {
-    const db = await client();
+  async function googleEnabled() {
     const response = await fetch(projectUrl + '/auth/v1/settings', {headers:{apikey:publishableKey}});
     if (!response.ok) throw new Error('Google sign-in is unavailable. Please try again later.');
-    if (!(await response.json()).external?.google) throw new Error('Google sign-in is not enabled yet. Use email to sign in.');
+    return (await response.json()).external?.google === true;
+  }
+  async function google(link = false) {
+    const db = await client();
+    if (!await googleEnabled()) throw new Error('Google sign-in is not enabled yet. Use email to sign in.');
     const options = {provider:'google', options:{redirectTo:authRedirect}};
     data(link ? await db.auth.linkIdentity(options) : await db.auth.signInWithOAuth(options));
   }
@@ -320,7 +323,7 @@ const storageService = (() => {
   }
   return {
     cloudEnabled: () => Boolean(owner()),
-    signIn, signOut, google, openWorkspace, importDevice, exportBackup, importBackup, openEmailLink,
+    signIn, signOut, google, googleEnabled, openWorkspace, importDevice, exportBackup, importBackup, openEmailLink,
     async exchangeCode(code, flowId) {
       const db = await client();
       return data(await db.auth.exchangeCodeForSession(code, flowId ? {flowId} : undefined)).redirectType;

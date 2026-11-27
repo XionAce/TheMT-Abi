@@ -8,6 +8,10 @@
   const day = params.get('plannerDay');
   const enter = () => location.replace('/' + (route === 'planner' && /^\d{4}-\d{2}-\d{2}$/.test(day) ? '?plannerDay=' + day : '') + '#' + route);
   let mode, updatePassword;
+  let googleAvailable = false;
+  function showGoogle() {
+    el('google-login').hidden = el('login-divider').hidden = !googleAvailable || !['login','register'].includes(mode);
+  }
   const copy = {
     login:['Welcome back.', 'Sign in to your study desk.', 'Sign in'],
     register:['Create an account.', 'Keep your planner, focus sessions, and garden together.', 'Create account'],
@@ -20,7 +24,7 @@
     el('login-title').textContent = title;
     el('login-intro').textContent = intro;
     el('submit-login').textContent = submit;
-    el('google-login').hidden = el('login-divider').hidden = !['login','register'].includes(mode);
+    showGoogle();
     el('email-label').hidden = el('email').disabled = mode === 'reset';
     el('password-label').hidden = el('password').disabled = mode === 'forgot';
     el('password').value = '';
@@ -37,7 +41,13 @@
     buttons.forEach(b => b.disabled = true);
     el('login-status').textContent = 'One moment…';
     try { await action(); }
-    catch (e) { el('login-status').textContent = e.message || 'Could not connect. Please try again.'; }
+    catch (e) {
+      const messages = {
+        email_address_not_authorized:'Email delivery is limited to project team addresses during testing.',
+        over_email_send_rate_limit:'Too many emails have been requested. Please wait before requesting another.',
+      };
+      el('login-status').textContent = messages[e.code] || e.message || 'Could not connect. Please try again.';
+    }
     finally { buttons.forEach(b => b.disabled = false); }
   }
   el('change-mode').onclick = () => show(mode === 'login' ? 'register' : 'login');
@@ -68,6 +78,10 @@
     });
   };
   show('login');
+  storageService.googleEnabled().then(enabled => {
+    googleAvailable = enabled;
+    showGoogle();
+  }).catch(() => { /* Email sign-in stays available if the settings request fails. */ });
   const fragment = new URLSearchParams(location.hash.slice(1));
   if (params.has('code') || params.has('error') || fragment.has('access_token') || fragment.has('error')) {
     history.replaceState(null, '', '/login.html');

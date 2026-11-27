@@ -69,7 +69,9 @@
     showStorage();
     el('account-email').textContent = user.email;
     const linked = user.identities?.some(i => i.provider === 'google');
-    el('link-google').hidden = Boolean(linked);
+    if (!linked) storageService.googleEnabled().then(enabled => {
+      el('link-google').hidden = !enabled;
+    }).catch(() => { /* Account management also works without Google. */ });
     el('cloud-settings').onclick = () => {
       status.textContent = linked ? 'Google is connected.' : '';
       el('cloud-dialog').showModal();
