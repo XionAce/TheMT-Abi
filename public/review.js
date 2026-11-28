@@ -5,7 +5,7 @@
   const page = $('review-page'), store = reviewStore, core = reviewCore;
   const offlineShell = document.body.classList.contains('review-offline');
   const grades = ['Again','Hard','Good','Easy'];
-  let rows = [], deck = core.defaultDeck, view = 'study', drafts = [], editing;
+  let rows = [], deck = core.defaultDeck, view = 'files', drafts = [], editing;
   let current, revealed = false, snapshot, readVersion = 0, visibleCount = 30, busy = false, imagesPending = 0;
   const blank = () => ({front:'',back:'',frontImage:'',backImage:'',selected:true});
   const text = (tag,value) => Object.assign(document.createElement(tag),{textContent:value});
@@ -34,7 +34,9 @@
   }
   for (const b of page.querySelectorAll('[data-review-view]')) b.onclick = () => selectView(b.dataset.reviewView);
   function showSide(target, card, side) {
-    target.replaceChildren(text('span',card[side]));
+    const display=card.type==='cloze' && side==='front' ? card.front.replace(/\{\{c1::[^{}]+\}\}/,'[…]') : card[side];
+    target.replaceChildren(text('span',display));
+    if (side==='back' && card.source) target.append(text('small',card.source.file+' · p. '+card.source.page+' · “'+card.source.quote+'”'));
     if (card[side+'Image']) {
       const img = new Image(); img.src = card[side+'Image']; img.alt = side === 'front' ? 'Question image' : 'Answer image';
       target.append(img);
@@ -45,7 +47,7 @@
     if (next?.id !== current?.id || next?.stamp !== current?.stamp) revealed = false;
     current = next;
     $('rv-position').textContent = next ? snapshot.queue.length+' available in this deck' :
-      liveCards(rows).length ? 'All caught up for now. You can browse your cards anytime.' : 'Your deck is ready. Open Quick-add to paste your first cards.';
+      liveCards(rows).length ? 'All caught up for now. You can browse your cards anytime.' : 'Your deck is ready. Create cards from files or paste them in Quick-add.';
     if (next) showSide($('rv-question'),next.data,'front'); else $('rv-question').replaceChildren();
     $('rv-reveal').hidden = !next || revealed;
     $('rv-answer').hidden = !next || !revealed;
@@ -153,14 +155,15 @@
     catch (e) { note(e.message || 'Could not open this image. Try Choose image.'); }
     finally { imagesPending--; draftCounts(); }
   }
-  function fields(draft) {
+  function fields(draft,onEdit) {
     const grid = document.createElement('div'); grid.className = 'rv-fields';
     for (const side of ['front','back']) {
       const section = document.createElement('div'), name = side === 'front' ? 'Front' : 'Back';
       const label = text('label',name);
       const area = document.createElement('textarea'); area.maxLength = 8000; area.rows = 2; area.value = draft[side];
-      area.oninput = () => { draft[side] = area.value; draftCounts(); };
+      area.oninput = () => { draft[side] = area.value; if (onEdit) onEdit(side,area.value); else draftCounts(); };
       label.append(area);
+      if (onEdit) {section.append(label);grid.append(section);continue;}
       const imageLabel = text('label','Choose image for '+side);
       const file = document.createElement('input'); file.type = 'file'; file.accept = 'image/png,image/jpeg,image/webp,image/gif,image/avif';
       imageLabel.append(file);
@@ -338,5 +341,13 @@
     // A queued edit should also resume when the PWA reopens on Home.
     store.read().then(records => { if (records.some(r=>r.dirty)) store.requestSync(); }).catch(()=>{});
   }
-  enter();
+  const uploads=initReviewUpload({fields,button,text,selectDeck:async id=>{
+    deck=id; await refresh(); selectView('study');
+  }});
+  function openUploads() {
+    if (offlineShell || location.hash==='#review') uploads.open().catch(e=>note(e.message));
+  }
+  window.addEventListener('hashchange',openUploads);
+  window.addEventListener('online',openUploads);
+  enter(); openUploads();
 })();

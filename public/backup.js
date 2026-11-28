@@ -37,7 +37,7 @@ const studyBackup = (() => {
     return { timer, intentions, sessions };
   }
   function parse(file) {
-    check(['AbiVerse','MTVerse'].includes(file?.app) && [1,2].includes(file.version));
+    check(['AbiVerse','MTVerse'].includes(file?.app) && [1,2,3].includes(file.version));
     const events = unique(file.events, e => {
       check(validEvent(e));
       const event = {id:id(e.id), title:e.title, date:e.date, time:e.time, kind:e.kind, notes:e.notes};
@@ -50,7 +50,8 @@ const studyBackup = (() => {
       return {id:id(d.id), created:number(d.created), x:d.x, y:d.y, image:d.image, note:string(d.note)};
     });
     const backup = {app:'MTVerse',version:file.version,events,doodles,focus:focus(file.focus)};
-    if (file.version === 2) backup.review = reviewCore.checkBackup(file.review);
+    if (file.version >= 2) backup.review = reviewCore.checkBackup(file.review);
+    if (file.version === 3) backup.drafts = reviewCore.backupDrafts(file.drafts);
     return backup;
   }
   return { parse };

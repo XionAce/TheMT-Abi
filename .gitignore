@@ -2,3 +2,8 @@ graphify-out/
 node_modules/
 public/vendor/
 public/sw.js
+private-eval/
+evaluation-results/
+.env
+.env.*
+!.env.example

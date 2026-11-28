@@ -21,9 +21,15 @@ const reviewStore = (() => {
   function database() {
     if (!owner) throw new Error('Open your account before using Review.');
     if (!dbPromise) dbPromise = new Promise((resolve,reject) => {
-      const open = indexedDB.open('mtverse-review-' + owner,1);
-      open.onupgradeneeded = () => open.result.createObjectStore('records',{keyPath:'id'});
-      open.onsuccess = () => resolve(open.result);
+      const open = indexedDB.open('mtverse-review-' + owner,2);
+      open.onupgradeneeded = () => {
+        for (const name of ['records','sources','sections'])
+          if (!open.result.objectStoreNames.contains(name)) open.result.createObjectStore(name,{keyPath:'id'});
+      };
+      open.onsuccess = () => {
+        open.result.onversionchange = () => { open.result.close(); dbPromise=null; };
+        resolve(open.result);
+      };
       open.onerror = () => reject(open.error);
       open.onblocked = () => reject(new Error('Close other Review tabs and retry.'));
     }).catch(error => { dbPromise = null; throw error; });
@@ -137,5 +143,58 @@ const reviewStore = (() => {
       return clean.filter(row=>!existing.has(row.id));
     });
   }
-  return {init,read,edit,sync,requestSync,exportRows,restore,events,get status(){return status;}};
+  // Drafts and source blobs never enter the cloud outbox. Mutations read the
+  // latest section inside the transaction so edits survive other tabs.
+  async function localDrafts(stores,mode,operation) {
+    const db=await database();
+    return new Promise((resolve,reject)=>{
+      const tx=db.transaction(stores,mode);
+      let value,reason;
+      const done=result=>{value=result;};
+      const fail=err=>{reason=err;tx.abort();};
+      tx.oncomplete=()=>resolve(value);
+      tx.onabort=()=>reject(reason || tx.error || new Error('Device save interrupted.'));
+      operation(tx,done,fail);
+    });
+  }
+  const allSections=()=>localDrafts(['sections'],'readonly',(tx,done)=>{
+    const q=tx.objectStore('sections').getAll(); q.onsuccess=()=>done(q.result);
+  });
+  const getSource=id=>localDrafts(['sources'],'readonly',(tx,done)=>{
+    const q=tx.objectStore('sources').get(id); q.onsuccess=()=>done(q.result?.file);
+  });
+  const addFile=(id,file,sections)=>localDrafts(['sources','sections'],'readwrite',(tx)=>{
+    tx.objectStore('sources').put({id,file});
+    const store=tx.objectStore('sections');
+    for (const section of sections) {
+      const q=store.get(section.id); q.onsuccess=()=>{if (!q.result) store.add(section);};
+    }
+  });
+  const updateSection=(id,change)=>localDrafts(['sections'],'readwrite',(tx,done,fail)=>{
+    const store=tx.objectStore('sections'), q=store.get(id);
+    q.onsuccess=()=>{try {
+      if (!q.result) return;
+      const row=change(q.result);
+      if (row) {store.put(row);done(row);}
+    } catch(e) {fail(e);}};
+  });
+  const clearDrafts=()=>localDrafts(['sections','sources'],'readwrite',tx=>{
+    tx.objectStore('sections').clear(); tx.objectStore('sources').clear();
+  });
+  const restoreDrafts=sections=>localDrafts(['records','sections'],'readwrite',tx=>{
+    const records=tx.objectStore('records').getAllKeys(), store=tx.objectStore('sections');
+    records.onsuccess=()=>{
+      const approved=new Set(records.result);
+      for (const incoming of sections) {
+        const read=store.get(incoming.id);
+        read.onsuccess=()=>{
+          const existing=read.result, cards=existing?.cards || [];
+          const known=new Set(cards.map(c=>c.id));
+          const extra=incoming.cards.filter(c=>!approved.has(c.id) && !known.has(c.id));
+          if (extra.length) store.put({...incoming,...existing,state:'ready',lease:null,cards:[...cards,...extra]});
+        };
+      }
+    };
+  });
+  return {init,read,edit,sync,requestSync,exportRows,restore,events,allSections,getSource,addFile,updateSection,clearDrafts,restoreDrafts,get status(){return status;}};
 })();

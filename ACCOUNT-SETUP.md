@@ -51,7 +51,7 @@ The 15-new-card default is shared across decks. The study date rolls over at **4
 
 Under **Study settings**, enable offline reopening on a personal device while online. The app installs its offline files and requests persistent storage. The browser decides whether to grant it. A trusted offline launch opens Review only. A reconnect verifies the account before uploading. Disabling offline reopening or signing out revokes the local shortcut. The account's local database remains on the device for its next sign-in, including pending changes. Browser data clearing or storage eviction can erase unsynced work. iOS/iPadOS browser users see the Home Screen tip once per browser storage profile.
 
-**My account → Study backups** exports version 2 with Review records, images, history, and settings. Existing version 1 imports still work. Restore merges missing IDs, preserves existing IDs and deletions, and queues newly restored Review records for sync. Full-workspace backups require a connection to read the other study spaces.
+**My account → Study backups** exports version 3 with Review records, card images, history, settings and locally saved AI draft text. Versions 1 and 2 still import. Restore merges missing IDs, preserves existing IDs and deletions, and queues newly restored approved Review records for sync. Full-workspace backups require a connection to read the other study spaces.
 
 ### Manual acceptance check
 
@@ -59,4 +59,47 @@ Under **Study settings**, enable offline reopening on a personal device while on
 2. On a real iPad, copy a picture from Photos or Safari and paste into the front or back text field. Try the file picker too. Check the thumbnail, reveal the answer, and read diagram labels after compression.
 3. Set the new-card limit to 1. Reveal, rate, and undo. Verify the available count returns and the rating's progress disappears. Try a different deck and confirm it shares the limit.
 4. Enable offline reopening, wait for the installation message, and add the site to the Home Screen. In airplane mode close and reopen the installed app, study and edit, then reconnect. Wait for **Synced**. Check the second device after opening Review.
-5. Download a version 2 backup and restore it into an empty test account. Check its images, due cards, and limit. Restore a version 1 backup too. Verify Planner events, Garden memories, and Focus history.
+5. Restore a version 3 backup into an empty test account. Check card images, citations, unapproved draft text, due cards, and limit. Import older version 1 and 2 backups and verify Planner events, Garden memories, and Focus history.
+
+## AI cards from PDFs and images
+
+1. Apply `supabase/migrations/202611280001_ai_drafts.sql` in the same project as the accounts preview.
+2. In Vercel project settings, add the following **server environment variables** for the Preview environment and redeploy the accounts branch. For local end-to-end testing use `vercel dev` with the same environment. A static server supports offline Review and has no drafting endpoint.
+
+| Variable | Value |
+|---|---|
+| `SUPABASE_URL` | The Supabase project URL already used by the browser |
+| `SUPABASE_SERVICE_ROLE_KEY` | A server-side secret/service-role key for that project |
+| `GEMINI_API_KEY` | Key for a paid Gemini project when using Gemini |
+| `AI_PROVIDER` | Defaults to `gemini`. Accepts `gemini`, `claude`, or `openai` |
+| `AI_MODEL` | Optional model ID. Gemini defaults to `gemini-3.5-flash` |
+| `AI_DAILY_PAGE_LIMIT` | Optional positive integer, defaults to 250 per account, resets at 00:00 UTC |
+
+Claude uses `ANTHROPIC_API_KEY` and defaults to `claude-sonnet-4-6`. OpenAI uses `OPENAI_API_KEY` and defaults to `gpt-5.4-mini`. Set only the deployed provider's key in Vercel. Keep secrets outside the public directory and omit public build-variable prefixes.
+
+### Files, evidence and retries
+
+Review → Create from files accepts multiple PDFs and images. Each PDF defaults to all pages. Set an optional inclusive range before adding the files. Each file gets its own deck upon first approval. The browser keeps sources and editable drafts in the signed-in account's IndexedDB. Clear drafts removes this device's queued originals and drafts. The source filename, original page number and quote stay with approved cards.
+
+The screen names the configured provider before generation. Each request sends rendered pages or a resized image through an authenticated Vercel function. Image-only PDFs and diagrams go through the same visual model. Readable PDF text is used locally to check the quote when a text layer exists. Use **View page** or **View source image** to check table associations, figures and handwriting before approval. Generation requires a connection. Saved drafts can be reviewed and approved offline on a trusted device. Backups contain unfinished draft text, excluding original files. Re-select the same named file to view its pages after restoring a backup elsewhere.
+
+A request accepts up to five pages, 3,000,000 binary bytes, 24,000 counted input tokens and 4,800 output tokens. Files are capped at 50 pages and 25 MiB per PDF, or 10 MiB per image. Supabase reserves a section atomically per account. Concurrent duplicate requests share a reservation. A completed result is encrypted with a key derived from the server secret and can be replayed for 24 hours. Expired entries are pruned on later reservations. Each unique section consumes its pages once per UTC day, with up to three model attempts that day. An interrupted reservation unlocks within four minutes. A provider call that finished before the server could record its result may incur another charge on retry. Provider retention is governed by the configured provider account.
+
+PDF.js (`pdfjs-dist`, Apache-2.0) renders source pages and reads their text layer. `pdf-lib` (MIT) packages selected page images as a PDF and validates page counts on the server. The build ships their notices. Provider adapters use native fetch.
+
+### Evaluate quality and cost
+
+Run `npm run eval:cards` for a local dry run using the two synthetic PDFs and one image in `tests/fixtures/flashcards/`. To compare models, set the selected providers' keys in the local environment and run `npm run eval:cards -- --send`. For your own files, put copies in the gitignored `private-eval/` folder and run:
+
+```sh
+npm run eval:cards -- --folder private-eval
+npm run eval:cards -- --folder private-eval --providers gemini,claude,openai --send
+```
+
+Only `--send` makes provider requests. Each selected provider receives the same sections. Results stay in gitignored `evaluation-results/`, outside Vercel's public directory. Review `cards.json` for cards and raw token usage, `costs.csv` for per-section estimates in USD, and `quality.csv` for scoring answers against the original files. The synthetic answer key includes a blank page and easily confused table rows. Check both unsupported answers and missed source facts.
+
+Use `EVAL_GEMINI_MODEL`, `EVAL_CLAUDE_MODEL`, or `EVAL_OPENAI_MODEL` to change individual candidates. For a custom model, set the corresponding `EVAL_*_RATES` to comma-separated input,output USD per million tokens. Unknown prices or unavailable token counts leave cost blank. Estimates use standard uncached rates and include reported thinking/output tokens. Compare actual billing if discounts, cached tokens, or provider fees apply.
+
+The default rates are from the providers' standard pricing tables. [Gemini](https://ai.google.dev/gemini-api/docs/pricing) · [Claude](https://platform.claude.com/docs/en/about-claude/pricing) · [OpenAI](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
+
+On a real iPad, try Files and Photos multi-selection, check small labels against the original, edit an unapproved draft, close and reopen the Home Screen app, then approve offline. HEIC/HEIF photos need a browser that can decode them, or a JPEG copy. After reconnecting, verify the deck and citation on a second signed-in device.

@@ -1,6 +1,7 @@
 // The build supplies a content-based cache name and a list of public static assets.
 const CACHE = __CACHE_NAME__;
 const FILES = __SHELL_FILES__;
+const OPTIONAL = new Set(__OPTIONAL_FILES__);
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache =>
     cache.addAll(FILES.map(url => new Request(url, { cache: 'reload' })))));
@@ -19,6 +20,16 @@ self.addEventListener('fetch', event => {
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
   const home = request.mode === 'navigate' && ['/', '/index.html'].includes(url.pathname);
   const key = home ? '/index.html' : url.pathname;
+  if (OPTIONAL.has(key) && !url.search) {
+    event.respondWith(caches.open(CACHE).then(async cache=>{
+      const hit=await cache.match(key);
+      if (hit) return hit;
+      const response=await fetch(request);
+      if (response.ok) await cache.put(key,response.clone());
+      return response;
+    }));
+    return;
+  }
   if (!FILES.includes(key) || (!home && url.search)) return;
   event.respondWith(caches.open(CACHE).then(async cache => (await cache.match(key)) || fetch(request)));
 });

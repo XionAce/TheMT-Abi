@@ -44,7 +44,7 @@
     el('review-page').hidden = false;
     document.documentElement.dataset.theme = await storageService.get('theme') ||
       (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
-    await loadScripts(['review']);
+    await loadScripts(['review-upload','review']);
     el('session-check').hidden = true;
     app.hidden = false;
     const reconnect = el('review-reconnect');
@@ -139,7 +139,7 @@
     });
     // Load study modules only after the server verifies the account and workspace.
     reviewStore.init(user.id,true);
-    await loadScripts(['backup','workspace-tools','planner','planner-reminders','desk','garden','cozy','ambient','vendor/spotify-config','spotify','review']);
+    await loadScripts(['backup','workspace-tools','planner','planner-reminders','desk','garden','cozy','ambient','vendor/spotify-config','spotify','review-upload','review']);
     el('session-check').hidden = true;
     app.hidden = false;
   } catch (error) {

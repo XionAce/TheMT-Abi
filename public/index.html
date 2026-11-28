@@ -133,11 +133,26 @@
       <form id="review-new-deck"><label>New deck<input required maxlength="100" id="review-deck-name"></label><button class="soft-btn">Create deck</button></form>
     </div>
     <div class="review-tabs" role="group" aria-label="Review activities">
-      <button type="button" data-review-view="study" aria-pressed="true">Study</button>
+      <button type="button" data-review-view="files" aria-pressed="true">Create from files</button>
+      <button type="button" data-review-view="study" aria-pressed="false">Study</button>
       <button type="button" data-review-view="add" aria-pressed="false">Quick-add</button>
       <button type="button" data-review-view="library" aria-pressed="false">Browse</button>
     </div>
-    <section class="space-card rv-panel" id="rv-study" aria-label="Study cards">
+    <section class="space-card rv-panel" id="rv-files" aria-labelledby="rv-files-title">
+      <h2 id="rv-files-title">Turn your notes into cards</h2>
+      <p id="rv-privacy" role="status">Choose lecture slides, screenshots, or photos. Files stay on this device until you start drafting.</p>
+      <button type="button" class="soft-btn" id="rv-check-ai" hidden>Check connection again</button>
+      <label>PDFs and images<input id="rv-files-input" type="file" multiple accept=".pdf,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif,.heic,.heif"></label>
+      <details><summary>Choose specific PDF pages</summary>
+        <label>Page range (blank for all)<input id="rv-file-range" placeholder="e.g. 4–12" maxlength="12"></label>
+      </details>
+      <p>Up to 50 pages and 25 MB per PDF, or 10 MB per image. Each file becomes its own deck when you approve cards.</p>
+      <button type="button" class="primary" id="rv-queue-files">Add files to queue</button>
+      <button type="button" class="soft-btn" id="rv-generate">Generate drafts</button>
+      <button type="button" class="soft-btn" id="rv-clear">Clear drafts</button>
+      <p id="rv-file-status" role="status"></p><div id="rv-queue"></div>
+    </section>
+    <section class="space-card rv-panel" id="rv-study" aria-label="Study cards" hidden>
       <p id="rv-position"></p><div id="rv-question"></div><div id="rv-answer" hidden></div>
       <button id="rv-reveal" class="primary" hidden>Show answer</button>
       <div id="rv-grades" aria-label="Rate your recall"></div>

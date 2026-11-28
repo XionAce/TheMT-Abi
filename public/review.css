@@ -28,3 +28,13 @@
 @media(max-width:590px){.rv-fields{grid-template-columns:1fr}.review-toolbar form{align-items:end}.review-toolbar input{width:min(160px,46vw)}.rv-panel{padding:16px}.review-tabs button{flex:1;padding-inline:6px}}
 
 .rv-panel button:focus-visible,.rv-settings summary:focus-visible,.rv-settings button:focus-visible,.review-tabs button:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+.rv-file{margin:1.2rem 0;padding:clamp(.8rem,3vw,1.5rem);border:1px solid var(--line);border-radius:18px}
+.rv-file h3,.rv-file blockquote{overflow-wrap:anywhere}
+.rv-file-section+.rv-file-section{border-top:1px solid var(--line);margin-top:1rem}
+.rv-file-section blockquote{margin:.8rem 0;padding:.25rem .8rem;border-left:3px solid var(--accent);color:var(--muted)}
+.rv-file-section canvas{display:block;width:100%;height:auto;margin:1rem 0;border-radius:6px}
+.rv-file-section input[type=checkbox]{width:1.2rem;min-height:1.2rem;vertical-align:middle}
+#rv-files input[type=file]{max-width:100%;min-height:44px}
+#rv-files summary{cursor:pointer;padding:.7rem 0}
+#rv-files button{margin:.25rem .25rem .25rem 0}
+#rv-answer small{display:block;font:normal 1rem/1.5 var(--desk-type);margin-top:1rem;color:var(--muted)}

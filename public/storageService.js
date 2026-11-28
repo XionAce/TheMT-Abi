@@ -300,7 +300,8 @@ const storageService = (() => {
       storageService.listEvents(), storageService.listDoodles(), storageService.get('cozy'),
     ]);
     const review = await reviewStore.exportRows();
-    return studyBackup.parse({app:'MTVerse', version:2, review, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
+    const drafts=(await reviewStore.allSections()).filter(s=>s.state==='ready' && s.cards.length);
+    return studyBackup.parse({app:'MTVerse', version:3, review, drafts, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
   }
   async function importBackup(input) {
     const file = studyBackup.parse(input);
@@ -308,6 +309,7 @@ const storageService = (() => {
     const events = file.events.map(({id, ...value}) => [id, value]);
     await mergeStudy([['event', events], ['doodle', file.doodles.map(d => [d.id,d])]], file.focus, target);
     if (file.review) await reviewStore.restore(file.review);
+    if (file.drafts?.length) await reviewStore.restoreDrafts(file.drafts);
   }
   // Recovery sessions live only in memory and never switch the active workspace.
   async function openEmailLink(type, tokens) {
@@ -336,6 +338,21 @@ const storageService = (() => {
     async enableOfflineReview(brand) {
       const {userId} = await workspace();
       write('offline-review',{id:userId,brand});
+    },
+    async draftRequest(payload) {
+      const {db,userId}=await workspace();
+      const {session}=data(await db.auth.getSession());
+      if (!session || session.user.id!==userId) throw new Error('Sign in again to create cards.');
+      const response=await fetch('/api/draft-cards',{method:payload?'POST':'GET',cache:'no-store',
+        headers:{Authorization:'Bearer '+session.access_token,'Content-Type':'application/json'},
+        body:payload?JSON.stringify(payload):undefined,signal:AbortSignal.timeout(165000)});
+      const result=await response.json().catch(()=>({error:'AI drafting needs the Vercel API. Open the preview and retry.'}));
+      if (!response.ok || result.error) {
+        const message=result.error || 'Drafting failed. Please retry.';
+        const err=new Error(message+(result.resetAt?' Resets '+new Date(result.resetAt).toLocaleString()+'.':''));
+        err.status=response.status; throw err;
+      }
+      return result;
     },
     async reviewCloud(id) {
       const {db,userId} = await workspace(id);
