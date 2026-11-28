@@ -3,7 +3,7 @@
 (() => {
   const el = id => document.getElementById(id);
   const params = new URL(location.href).searchParams;
-  const routes = ['home','planner','focus','garden'];
+  const routes = ['home','planner','focus','garden','review'];
   const route = routes.includes(params.get('next')) ? params.get('next') : 'home';
   const day = params.get('plannerDay');
   const enter = () => location.replace('/' + (route === 'planner' && /^\d{4}-\d{2}-\d{2}$/.test(day) ? '?plannerDay=' + day : '') + '#' + route);

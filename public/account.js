@@ -5,7 +5,7 @@
   const app = el('study-app');
   const login = new URL('/login.html', location.origin);
   const route = location.hash.slice(1);
-  if (['planner','focus','garden'].includes(route)) login.searchParams.set('next', route);
+  if (['planner','focus','garden','review'].includes(route)) login.searchParams.set('next', route);
   const day = new URL(location.href).searchParams.get('plannerDay');
   if (route === 'planner' && /^\d{4}-\d{2}-\d{2}$/.test(day)) login.searchParams.set('plannerDay', day);
   el('session-login').href = login.href;
@@ -22,7 +22,53 @@
     location.replace(destination);
   }
   window.addEventListener('pageshow', event => { if (event.persisted) location.reload(); });
+  async function loadScripts(files) {
+    for (const file of files) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = file + '.js';
+        script.onload = resolve;
+        script.onerror = () => reject(new Error('The study desk could not load.'));
+        document.head.append(script);
+      });
+    }
+  }
+  async function openOffline() {
+    const trusted = await storageService.get('offline-review');
+    if (!trusted?.id) return false;
+    reviewStore.init(trusted.id,false);
+    document.body.classList.add('review-offline');
+    el('brand-name').textContent = trusted.brand;
+    document.title = 'Review · ' + trusted.brand;
+    el('home-page').hidden = true;
+    el('review-page').hidden = false;
+    document.documentElement.dataset.theme = await storageService.get('theme') ||
+      (matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light');
+    await loadScripts(['review']);
+    el('session-check').hidden = true;
+    app.hidden = false;
+    const reconnect = el('review-reconnect');
+    reconnect.hidden = false;
+    reconnect.onclick = () => {
+      history.replaceState(null, '', '/#review');
+      location.reload();
+    };
+    window.addEventListener('online', async () => {
+      try {
+        const account = await storageService.openWorkspace(leave);
+        if (account?.user.id !== trusted.id) { leave(); return; }
+        reviewStore.init(trusted.id,true);
+        await reviewStore.sync();
+        reconnect.textContent = 'Open full workspace';
+      } catch { el('rv-sync-status').textContent = 'Saved on this device. Reconnect to sync.'; }
+    });
+    storageService.subscribe(async key => {
+      if ((key === 'offline-review' || key === '*') && (await storageService.get('offline-review'))?.id !== trusted.id) leave();
+    });
+    return true;
+  }
   try {
+    if (!navigator.onLine && await openOffline()) return;
     const account = await storageService.openWorkspace(leave);
     if (!account) { leave(); return; }
     const {user, desk} = account;
@@ -92,18 +138,15 @@
       status.textContent = 'Device work copied. Existing account records were kept.';
     });
     // Load study modules only after the server verifies the account and workspace.
-    for (const file of ['backup','workspace-tools','planner','planner-reminders','desk','garden','cozy','ambient','vendor/spotify-config','spotify']) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = file + '.js';
-        script.onload = resolve;
-        script.onerror = () => reject(new Error('The study desk could not load.'));
-        document.head.append(script);
-      });
-    }
+    reviewStore.init(user.id,true);
+    await loadScripts(['backup','workspace-tools','planner','planner-reminders','desk','garden','cozy','ambient','vendor/spotify-config','spotify','review']);
     el('session-check').hidden = true;
     app.hidden = false;
   } catch (error) {
+    if (!document.body.classList.contains('review-offline') &&
+        (!navigator.onLine || error.name === 'AuthRetryableFetchError' || error.message === 'Failed to fetch')) {
+      try { if (await openOffline()) return; } catch { /* Show the recovery controls below. */ }
+    }
     app.hidden = true;
     const setup = ['PGRST205','42501'].includes(error.code);
     el('session-status').textContent = setup ? 'Your study desk is awaiting database setup. Please try again later.'

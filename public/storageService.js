@@ -224,6 +224,7 @@ const storageService = (() => {
   }
   async function signOut() {
     const db = await client();
+    write('offline-review', null);
     data(await db.auth.signOut({scope:'local'}));
     activeUser = null;
   }
@@ -241,12 +242,14 @@ const storageService = (() => {
   async function openWorkspace(onAccountChange) {
     const db = await client();
     const {session} = data(await db.auth.getSession());
-    if (!session) return null;
+    if (!session) { write('offline-review', null); return null; }
     const {user} = data(await db.auth.getUser());
     if (!user?.email_confirmed_at) throw new Error('Verify your email to open your workspace.');
+    if (read('offline-review')?.id !== user.id) write('offline-review', null);
     activeUser = user;
     db.auth.onAuthStateChange((_event, current) => {
       if (current?.user.id !== user.id) {
+        write('offline-review', null);
         activeUser = null;
         onAccountChange();
       }
@@ -296,13 +299,15 @@ const storageService = (() => {
     const [events, doodles, focus] = await Promise.all([
       storageService.listEvents(), storageService.listDoodles(), storageService.get('cozy'),
     ]);
-    return studyBackup.parse({app:'MTVerse', version:1, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
+    const review = await reviewStore.exportRows();
+    return studyBackup.parse({app:'MTVerse', version:2, review, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
   }
   async function importBackup(input) {
     const file = studyBackup.parse(input);
     const target = await workspace();
     const events = file.events.map(({id, ...value}) => [id, value]);
     await mergeStudy([['event', events], ['doodle', file.doodles.map(d => [d.id,d])]], file.focus, target);
+    if (file.review) await reviewStore.restore(file.review);
   }
   // Recovery sessions live only in memory and never switch the active workspace.
   async function openEmailLink(type, tokens) {
@@ -327,6 +332,38 @@ const storageService = (() => {
     async exchangeCode(code, flowId) {
       const db = await client();
       return data(await db.auth.exchangeCodeForSession(code, flowId ? {flowId} : undefined)).redirectType;
+    },
+    async enableOfflineReview(brand) {
+      const {userId} = await workspace();
+      write('offline-review',{id:userId,brand});
+    },
+    async reviewCloud(id) {
+      const {db,userId} = await workspace(id);
+      if (owner() !== userId) throw new Error('Sign in again to sync Review.');
+      const table = () => db.from('mtverse_review');
+      const run = async query => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(),20000);
+        try { return data(await query.abortSignal(controller.signal)); }
+        finally { clearTimeout(timer); }
+      };
+      return {
+        async push(rows, appendOnly) {
+          await run(table().upsert(rows.map(({id,kind,stamp,data})=>({owner_id:userId,id,kind,stamp,data})),
+            {onConflict:'owner_id,id',ignoreDuplicates:appendOnly}));
+        },
+        async manifest() {
+          const rows = [];
+          for (;;) {
+            let page = table().select('id,stamp').eq('owner_id',userId).order('id').limit(500);
+            if (rows.length) page = page.gt('id',rows.at(-1).id);
+            const batch = await run(page);
+            rows.push(...batch);
+            if (batch.length < 500) return rows;
+          }
+        },
+        fetch(ids) { return run(table().select('id,kind,stamp,data').eq('owner_id',userId).in('id',ids)); },
+      };
     },
     async changeEmail(email) {
       const {db} = await workspace();

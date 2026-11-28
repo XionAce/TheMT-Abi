@@ -4,7 +4,7 @@
 // fields so account sessions, Spotify tokens, and retired features stay private.
 const studyBackup = (() => {
   function check(condition) {
-    if (!condition) throw new Error('This file is not a valid v1 study backup.');
+    if (!condition) throw new Error('This file is not a valid study backup.');
   }
   function id(value) {
     check(typeof value === 'string' && value.length > 0 && value.length <= 200);
@@ -37,7 +37,7 @@ const studyBackup = (() => {
     return { timer, intentions, sessions };
   }
   function parse(file) {
-    check(['AbiVerse','MTVerse'].includes(file?.app) && file.version === 1);
+    check(['AbiVerse','MTVerse'].includes(file?.app) && [1,2].includes(file.version));
     const events = unique(file.events, e => {
       check(validEvent(e));
       const event = {id:id(e.id), title:e.title, date:e.date, time:e.time, kind:e.kind, notes:e.notes};
@@ -49,7 +49,9 @@ const studyBackup = (() => {
       check(number(d.x) <= 1 && number(d.y) <= 1);
       return {id:id(d.id), created:number(d.created), x:d.x, y:d.y, image:d.image, note:string(d.note)};
     });
-    return { app:'MTVerse', version:1, events, doodles, focus:focus(file.focus) };
+    const backup = {app:'MTVerse',version:file.version,events,doodles,focus:focus(file.focus)};
+    if (file.version === 2) backup.review = reviewCore.checkBackup(file.review);
+    return backup;
   }
   return { parse };
 })();

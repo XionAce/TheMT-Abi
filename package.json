@@ -2,9 +2,11 @@
   "name": "abiverse",
   "private": true,
   "scripts": {
-    "build": "node scripts/build.cjs"
+    "build": "node scripts/build.cjs",
+    "test": "node --test"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.119.2"
+    "@supabase/supabase-js": "2.119.2",
+    "ts-fsrs": "6.0.1"
   }
 }

@@ -8,6 +8,10 @@ copyFileSync(
   join(vendor, 'supabase.js'),
 );
 
+copyFileSync(join(__dirname, '../node_modules/ts-fsrs/dist/index.umd.js'), join(vendor,'fsrs.js'));
+copyFileSync(join(__dirname, '../node_modules/ts-fsrs/LICENSE'), join(vendor,'fsrs-LICENSE.txt'));
+copyFileSync(join(__dirname, '../node_modules/@open-spaced-repetition/srs-kit/LICENSE'), join(vendor,'srs-kit-LICENSE.txt'));
+
 // Only the public Spotify app identifier belongs in the browser bundle.
 const clientId = (process.env.SPOTIFY_CLIENT_ID || '').trim();
 if (clientId && !/^[a-f0-9]{32}$/i.test(clientId)) {
@@ -18,7 +22,7 @@ writeFileSync(join(vendor, 'spotify-config.js'), 'window.ABIVERSE_SPOTIFY_CLIENT
 const publicDir = join(__dirname, '../public');
 const files = readdirSync(publicDir, { withFileTypes: true })
   .filter(file => file.isFile() && file.name !== 'sw.js')
-  .map(file => '/' + file.name).concat('/vendor/supabase.js', '/vendor/spotify-config.js').sort();
+  .map(file => '/' + file.name).concat('/vendor/supabase.js', '/vendor/spotify-config.js', '/vendor/fsrs.js', '/vendor/fsrs-LICENSE.txt', '/vendor/srs-kit-LICENSE.txt').sort();
 const template = readFileSync(join(__dirname, 'service-worker.js'), 'utf8');
 const hash = require('node:crypto').createHash('sha256').update(template);
 for (const file of files) hash.update(file).update(readFileSync(join(publicDir, file)));

@@ -24,6 +24,10 @@
   <link rel="stylesheet" href="spaces.css">
   <link rel="stylesheet" href="login.css">
   <script defer src="storageService.js"></script>
+  <link rel="stylesheet" href="review.css">
+  <script defer src="vendor/fsrs.js"></script>
+  <script defer src="review-core.js"></script>
+  <script defer src="review-store.js"></script>
   <script defer src="account.js"></script>
 </head>
 <body>
@@ -112,13 +116,60 @@
           <span class="island-copy"><strong>Notebook</strong><span>Lectures &amp; grid notes</span></span>
           <span class="island-end"><span class="preview-label">Preview</span></span>
         </button>
-        <button type="button" class="island review-island" data-preview="review" aria-haspopup="dialog">
+        <a class="island review-island" href="#review">
           <span class="island-visual" aria-hidden="true"><span class="mini-cards"><i>?</i></span></span>
-          <span class="island-copy"><strong>Review</strong><span>Flashcards &amp; practice quizzes</span></span>
-          <span class="island-end"><span class="preview-label">Preview</span></span>
-        </button>
+          <span class="island-copy"><strong>Review</strong><span>Flashcards &amp; daily practice</span></span>
+          <span class="island-end"><i class="chevron" aria-hidden="true"></i></span>
+        </a>
       </div>
     </section>
+  </main>
+  <main id="review-page" hidden>
+    <div class="intro"><div><h1 tabindex="-1">Review</h1><p id="review-progress"></p></div>
+      <button class="soft-btn" id="review-reconnect" hidden>Reconnect to account</button></div>
+    <p id="review-message" role="status"></p>
+    <div class="review-toolbar">
+      <label>Deck<select id="review-deck"><option value="inbox">My first deck</option></select></label>
+      <form id="review-new-deck"><label>New deck<input required maxlength="100" id="review-deck-name"></label><button class="soft-btn">Create deck</button></form>
+    </div>
+    <div class="review-tabs" role="group" aria-label="Review activities">
+      <button type="button" data-review-view="study" aria-pressed="true">Study</button>
+      <button type="button" data-review-view="add" aria-pressed="false">Quick-add</button>
+      <button type="button" data-review-view="library" aria-pressed="false">Browse</button>
+    </div>
+    <section class="space-card rv-panel" id="rv-study" aria-label="Study cards">
+      <p id="rv-position"></p><div id="rv-question"></div><div id="rv-answer" hidden></div>
+      <button id="rv-reveal" class="primary" hidden>Show answer</button>
+      <div id="rv-grades" aria-label="Rate your recall"></div>
+      <button class="soft-btn" id="rv-undo" hidden>Undo last rating</button>
+    </section>
+    <section class="space-card rv-panel" id="rv-add" aria-labelledby="quick-heading" hidden>
+      <h2 id="quick-heading">Quick-add cards</h2>
+      <label for="rv-paste">Paste Term :: Definition lines or a two-column table</label>
+      <textarea id="rv-paste" rows="4" placeholder="Term :: Definition"></textarea>
+      <button type="button" class="soft-btn" id="rv-preview">Preview rows</button>
+      <button type="button" class="soft-btn" id="rv-blank">Add blank row</button>
+      <div id="rv-drafts"></div><button class="primary" id="rv-save" hidden>Save cards</button>
+    </section>
+    <section class="space-card rv-panel" id="rv-library" aria-labelledby="browse-heading" hidden>
+      <h2 id="browse-heading">Card browser</h2>
+      <label>Search this deck<input type="search" id="rv-search"></label><div id="rv-results"></div>
+      <button class="soft-btn" id="rv-more" hidden>Show more</button>
+    </section>
+    <dialog id="rv-editor" aria-labelledby="rv-edit-title">
+      <h2 id="rv-edit-title">Edit card</h2><div id="rv-edit-fields"></div>
+      <p role="status" id="rv-edit-message"></p>
+      <button id="rv-edit-save" class="primary">Save changes</button>
+      <button id="rv-edit-cancel" class="soft-btn">Cancel</button>
+    </dialog>
+    <details class="space-card rv-settings"><summary>Study settings</summary>
+      <form id="rv-limit-form"><label>New cards per study day<input id="rv-limit" type="number" min="0" max="999" required></label>
+        <button class="soft-btn">Save limit</button></form><p>Your study day starts at 4 am local time.</p>
+      <button class="soft-btn" id="rv-trust">Enable offline reopening on this device</button>
+      <p id="rv-persistence" role="status"></p>
+    </details>
+    <p id="rv-ios" hidden>Add to Home Screen for reliable offline study.</p>
+    <div class="rv-sync"><span role="status" id="rv-sync-status"></span> <button id="rv-sync" class="soft-btn">Sync now</button></div>
   </main>
   <main id="planner-page" hidden>
     <div class="intro"><div><p id="date-line" class="date-line"></p><h1 tabindex="-1">Study calendar</h1></div>
