@@ -14,7 +14,7 @@
     button.disabled = !supported || !preference || (denied && !enabled);
     button.textContent = enabled ? 'Disable reminders' : 'Enable reminders';
     button.setAttribute('aria-pressed', String(enabled));
-    if (!supported) status.textContent = 'Reminders are unavailable here. On iPhone, try opening AbiVerse from your Home Screen.';
+    if (!supported) status.textContent = 'Reminders are unavailable here. On iPhone, try opening your study desk from your Home Screen.';
     else if (denied) status.textContent = 'Notifications are blocked. You can allow them in your browser or device settings.';
     else if (enabled && Notification.permission === 'granted') status.textContent = 'Reminders are on for this device.';
     else status.textContent = 'Reminders are off for this device.';
@@ -62,7 +62,7 @@
       if (navigator.locks) await navigator.locks.request(sentKey, deliver);
       else await deliver();
     } catch {
-      status.textContent = 'Could not check reminders. AbiVerse will try again while open.';
+      status.textContent = 'Could not check reminders. Your desk will try again while open.';
     } finally { checking = false; }
   }
 

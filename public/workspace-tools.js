@@ -17,7 +17,7 @@
     const blob = new Blob([JSON.stringify(backup)], {type:'application/json'});
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = 'AbiVerse-' + new Date().toISOString().slice(0,10) + '.json';
+    link.download = document.getElementById('brand-name').textContent + '-' + new Date().toISOString().slice(0,10) + '.json';
     document.body.append(link);
     link.click();
     link.remove();
@@ -35,10 +35,8 @@
     status.textContent = 'Backup imported. Existing records were kept.';
   });
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch(() => {
-        status.textContent = 'Offline launch is unavailable in this browser.';
-      });
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      status.textContent = 'Offline launch is unavailable in this browser.';
     });
   }
 })();

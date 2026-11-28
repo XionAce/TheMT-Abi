@@ -7,7 +7,6 @@
   const preview = document.getElementById('space-preview');
   const spaces = {
     notebook: {title:'Notebook', description:'Planned for this space: open a lecture PDF beside a grid page, then write and arrange microscope images with your Pencil.'},
-    review: {title:'Review', description:'Planned for this space: hide a label on a lecture image, name what you see, and flip it over to check your answer.'}
   };
 
   const mast = document.querySelector('.mast');
@@ -26,12 +25,13 @@
   }));
 
   function navigate(moveFocus) {
-    const pages = {home, planner, garden, focus:document.getElementById('focus-page')};
+    const pages = {home, planner, garden, review:document.getElementById('review-page'), focus:document.getElementById('focus-page')};
     const hash = location.hash.slice(1);
     const section = Object.hasOwn(pages, hash) ? hash : 'home';
     for (const [name, page] of Object.entries(pages)) page.hidden = name !== section;
-    const titles = {home:'AbiVerse', planner:'Planner · AbiVerse', garden:'Doodle Garden · AbiVerse', focus:'Focus & Cozy Room · AbiVerse'};
-    document.title = titles[section];
+    const brand = document.getElementById('brand-name').textContent;
+    const titles = {planner:'Planner', garden:'Doodle Garden', focus:'Focus & Cozy Room', review:'Review'};
+    document.title = section === 'home' ? brand : titles[section] + ' · ' + brand;
     for (const link of document.querySelectorAll('.desk-nav a')) {
       if (link.hash === '#' + section) link.setAttribute('aria-current','page');
       else link.removeAttribute('aria-current');

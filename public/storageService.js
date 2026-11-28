@@ -6,7 +6,16 @@ const storageService = (() => {
   const eventPrefix = 'themt-abi.event.';
   const themeKey = 'themt-abi.theme';
   const listeners = new Set();
-  const keyFor = (key) => (key === 'theme' ? themeKey : prefix + key);
+  let activeUser = null;
+  const owner = () => activeUser?.id;
+  function keyFor(key) {
+    if (key === 'theme') return themeKey;
+    if (key.startsWith('spotify.')) {
+      if (!owner()) throw new Error('Sign in to use Spotify.');
+      return prefix + owner() + '.' + key;
+    }
+    return prefix + key;
+  }
   function changed(key, external = false) {
     for (const listener of listeners) listener(key, external);
   }
@@ -21,7 +30,7 @@ const storageService = (() => {
     changed(key);
   }
   window.addEventListener('storage', (e) => {
-    if (e.key === keyFor('cloud-owner')) { location.reload(); return; }
+    if (owner() && e.key === keyFor('spotify.auth')) { changed('spotify.auth', true); return; }
     if (!e.key) changed('*', true);
     else if (e.key === themeKey) changed('theme', true);
     else if (e.key.startsWith(eventPrefix)) changed('events', true);
@@ -102,14 +111,10 @@ const storageService = (() => {
     }
     return [...items.values()];
   }
-  // A device can keep working locally until its owner chooses cloud storage.
-  // An expired cloud session must never redirect a save into the guest workspace.
   const projectUrl = 'https://jwbuvusjftowihjimfpr.supabase.co';
   const publishableKey = 'sb_publishable_VSitI9Qs1YqBHHdAsRp4-g_x0Ayt7no';
   const table = 'abiverse_records';
-  function owner() {
-    try { return read('cloud-owner'); } catch { return null; }
-  }
+  const authRedirect = location.origin + '/login.html';
   let clientPromise;
   function client() {
     if (!clientPromise) {
@@ -119,7 +124,7 @@ const storageService = (() => {
         script.onload = () => {
           try {
             resolve(window.supabase.createClient(projectUrl, publishableKey, {
-              auth: { storageKey: 'abiverse-account', detectSessionInUrl: false },
+              auth: { storageKey: 'abiverse-account', flowType:'pkce', detectSessionInUrl: false },
             }));
           } catch (error) { reject(error); }
         };
@@ -213,34 +218,54 @@ const storageService = (() => {
   async function signIn(email, password, register) {
     const db = await client();
     const result = register
-      ? await db.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } })
-      : await db.auth.signInWithPassword({ email, password });
-    const { session } = data(result);
-    if (!session) return false;
-    if (!session.user.email_confirmed_at) throw new Error('Verify your email before signing in.');
-    // Switch workspaces only after the table is available to this account.
-    data(await db.from(table).select('record_key').eq('owner_id', session.user.id).limit(1));
-    write('cloud-owner', session.user.id);
-    return true;
+      ? await db.auth.signUp({email, password, options:{emailRedirectTo:authRedirect}})
+      : await db.auth.signInWithPassword({email, password});
+    return Boolean(data(result).session);
   }
   async function signOut() {
     const db = await client();
-    data(await db.auth.signOut({ scope: 'local' }));
-    write('cloud-owner', null);
+    write('offline-review', null);
+    data(await db.auth.signOut({scope:'local'}));
+    activeUser = null;
+  }
+  async function googleEnabled() {
+    const response = await fetch(projectUrl + '/auth/v1/settings', {headers:{apikey:publishableKey}});
+    if (!response.ok) throw new Error('Google sign-in is unavailable. Please try again later.');
+    return (await response.json()).external?.google === true;
+  }
+  async function google(link = false) {
+    const db = await client();
+    if (!await googleEnabled()) throw new Error('Google sign-in is not enabled yet. Use email to sign in.');
+    const options = {provider:'google', options:{redirectTo:authRedirect}};
+    data(link ? await db.auth.linkIdentity(options) : await db.auth.signInWithOAuth(options));
+  }
+  async function openWorkspace(onAccountChange) {
+    const db = await client();
+    const {session} = data(await db.auth.getSession());
+    if (!session) { write('offline-review', null); return null; }
+    const {user} = data(await db.auth.getUser());
+    if (!user?.email_confirmed_at) throw new Error('Verify your email to open your workspace.');
+    if (read('offline-review')?.id !== user.id) write('offline-review', null);
+    activeUser = user;
+    db.auth.onAuthStateChange((_event, current) => {
+      if (current?.user.id !== user.id) {
+        write('offline-review', null);
+        activeUser = null;
+        onAccountChange();
+      }
+    });
+    const target = await workspace(user.id);
+    data(await query(target,'event').limit(0));
+    const desk = data(await db.from('mtverse_private_desks').select('note').eq('owner_id', user.id).maybeSingle());
+    if (activeUser?.id !== user.id) throw new Error('Account changed. Sign in again.');
+    return {user, desk};
   }
   async function mergeStudy(groups, local, target) {
     try {
       for (const [kind, items] of groups) {
-        if (target) {
-          for (let offset = 0; offset < items.length; offset += 10) {
-            const batch = items.slice(offset, offset + 10).map(([id, value]) => record(target, kind, id, value));
-            databaseResult(await target.db.from(table).upsert(batch, { ignoreDuplicates: true }));
-          }
-        } else {
-          for (const [id, value] of items) {
-            const key = kind === 'event' ? eventPrefix + id : prefix + 'doodle.' + id;
-            if (localStorage.getItem(key) === null) localStorage.setItem(key, JSON.stringify(value));
-          }
+        for (let offset = 0; offset < items.length; offset += 10) {
+          const batch = items.slice(offset, offset + 10).map(([id, value]) => record(target, kind, id, value));
+          databaseResult(await target.db.from(table).upsert(batch, {ignoreDuplicates:true}));
         }
       }
       if (local) {
@@ -254,16 +279,16 @@ const storageService = (() => {
             }
           }
         };
-        if (target) await updateCloudFocus(target, initial, merge);
-        else await storageService.update('cozy', initial, merge);
+        await updateCloudFocus(target, initial, merge);
       }
     } finally {
-      if (target) notifyCloud(target, '*');
-      else changed('*', true);
+      notifyCloud(target, '*');
     }
   }
   async function importDevice() {
     const target = await workspace();
+    const desk = data(await target.db.from('mtverse_private_desks').select('owner_id').eq('owner_id', target.userId).maybeSingle());
+    if (!desk) throw new Error('Device migration is available to the original desk owner.');
     const groups = [
       ['event', entries(eventPrefix)],
       ['doodle', (await listDoodles()).map(item => [item.id, item])],
@@ -274,13 +299,15 @@ const storageService = (() => {
     const [events, doodles, focus] = await Promise.all([
       storageService.listEvents(), storageService.listDoodles(), storageService.get('cozy'),
     ]);
-    return studyBackup.parse({app:'AbiVerse', version:1, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
+    const review = await reviewStore.exportRows();
+    return studyBackup.parse({app:'MTVerse', version:2, review, events:events.map(([id,e]) => ({...e,id})), doodles, focus});
   }
   async function importBackup(input) {
     const file = studyBackup.parse(input);
-    const target = owner() ? await workspace() : null;
+    const target = await workspace();
     const events = file.events.map(({id, ...value}) => [id, value]);
     await mergeStudy([['event', events], ['doodle', file.doodles.map(d => [d.id,d])]], file.focus, target);
+    if (file.review) await reviewStore.restore(file.review);
   }
   // Recovery sessions live only in memory and never switch the active workspace.
   async function openEmailLink(type, tokens) {
@@ -301,7 +328,55 @@ const storageService = (() => {
   }
   return {
     cloudEnabled: () => Boolean(owner()),
-    signIn, signOut, importDevice, exportBackup, importBackup, openEmailLink,
+    signIn, signOut, google, googleEnabled, openWorkspace, importDevice, exportBackup, importBackup, openEmailLink,
+    async exchangeCode(code, flowId) {
+      const db = await client();
+      return data(await db.auth.exchangeCodeForSession(code, flowId ? {flowId} : undefined)).redirectType;
+    },
+    async enableOfflineReview(brand) {
+      const {userId} = await workspace();
+      write('offline-review',{id:userId,brand});
+    },
+    async reviewCloud(id) {
+      const {db,userId} = await workspace(id);
+      if (owner() !== userId) throw new Error('Sign in again to sync Review.');
+      const table = () => db.from('mtverse_review');
+      const run = async query => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(),20000);
+        try { return data(await query.abortSignal(controller.signal)); }
+        finally { clearTimeout(timer); }
+      };
+      return {
+        async push(rows, appendOnly) {
+          await run(table().upsert(rows.map(({id,kind,stamp,data})=>({owner_id:userId,id,kind,stamp,data})),
+            {onConflict:'owner_id,id',ignoreDuplicates:appendOnly}));
+        },
+        async manifest() {
+          const rows = [];
+          for (;;) {
+            let page = table().select('id,stamp').eq('owner_id',userId).order('id').limit(500);
+            if (rows.length) page = page.gt('id',rows.at(-1).id);
+            const batch = await run(page);
+            rows.push(...batch);
+            if (batch.length < 500) return rows;
+          }
+        },
+        fetch(ids) { return run(table().select('id,kind,stamp,data').eq('owner_id',userId).in('id',ids)); },
+      };
+    },
+    async changeEmail(email) {
+      const {db} = await workspace();
+      data(await db.auth.updateUser({email}, {emailRedirectTo:authRedirect}));
+    },
+    async resetPassword(password) {
+      const db = await client();
+      data(await db.auth.updateUser({password}));
+    },
+    async saveDeskNote(note) {
+      const {db,userId} = await workspace();
+      data(await db.from('mtverse_private_desks').update({note}).eq('owner_id',userId).select('owner_id').single());
+    },
     connection: () => connection,
     async checkCloud() {
       if (!owner()) return;
@@ -312,20 +387,20 @@ const storageService = (() => {
     },
     async sendAccountEmail(email, recovery) {
       const db = await client();
-      const redirect = location.origin + location.pathname;
+      const redirect = authRedirect;
       if (recovery) data(await db.auth.resetPasswordForEmail(email, {redirectTo:redirect}));
       else data(await db.auth.resend({type:'signup', email, options:{emailRedirectTo:redirect}}));
     },
-    async accountEmail() { return (await workspace()).email; },
     async get(key) {
-      if (key === 'cozy' && owner()) return (await cloudFocus(await workspace()))?.payload ?? null;
+      if (key === 'cozy') return (await cloudFocus(await workspace()))?.payload ?? null;
+      if (key === 'cloud-owner') return owner();
       return read(key);
     },
     async set(key, value) {
       write(key, value);
     },
     async update(key, initial, mutate) {
-      if (key === 'cozy' && owner()) return updateCloudFocus(await workspace(), initial, mutate);
+      if (key === 'cozy') return updateCloudFocus(await workspace(), initial, mutate);
       const commit = () => {
         const state = read(key) ?? initial();
         const result = mutate(state);
@@ -339,30 +414,17 @@ const storageService = (() => {
       return () => listeners.delete(fn);
     },
     async listEvents() {
-      return owner() ? listCloud('event') : entries(eventPrefix);
+      return listCloud('event');
     },
-    async saveEvent(id, item) {
-      if (owner()) return saveCloud('event', id, item, 'events');
-      localStorage.setItem(eventPrefix + id, JSON.stringify(item));
-      changed('events');
-    },
+    async saveEvent(id, item) { return saveCloud('event', id, item, 'events'); },
     async deleteEvent(id) {
-      if (owner()) {
-        const target = await workspace();
-        databaseResult(await target.db.from(table).delete().eq('owner_id', target.userId).eq('kind', 'event').eq('record_key', id));
-        notifyCloud(target, 'events');
-        return;
-      }
-      localStorage.removeItem(eventPrefix + id);
-      changed('events');
+      const target = await workspace();
+      databaseResult(await target.db.from(table).delete().eq('owner_id',target.userId).eq('kind','event').eq('record_key',id));
+      notifyCloud(target, 'events');
     },
-    async listDoodles() {
-      return owner() ? (await listCloud('doodle')).map(([, value]) => value) : listDoodles();
-    },
+    async listDoodles() { return (await listCloud('doodle')).map(([,value]) => value); },
     async saveDoodle(item) {
-      const value = { ...item, image: await dataURL(item.image) };
-      if (owner()) return saveCloud('doodle', item.id, value, 'doodle.' + item.id);
-      write('doodle.' + item.id, value);
+      return saveCloud('doodle', item.id, {...item, image:await dataURL(item.image)}, 'doodle.' + item.id);
     },
   };
 })();
